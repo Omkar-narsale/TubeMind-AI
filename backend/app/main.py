@@ -9,10 +9,27 @@ from app.api.endpoints import health, youtube, transcript, rag, chat
 from app.learning import router as learning_router
 from app.core.config import settings
 from app.schemas.common import ErrorDetail, ErrorResponse
+from app.llm.exceptions import GroqAPIException
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
 )
+
+
+@app.exception_handler(GroqAPIException)
+async def groq_exception_handler(request: Request, exc: GroqAPIException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=jsonable_encoder(
+            ErrorResponse(
+                success=False,
+                error=ErrorDetail(
+                    code=exc.code,
+                    message=exc.message,
+                ),
+            )
+        ),
+    )
 
 # Configure CORS
 # To support chrome extension requests from chrome-extension:// origins,

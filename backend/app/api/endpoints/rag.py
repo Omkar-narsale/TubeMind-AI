@@ -6,8 +6,14 @@ from app.transcript.exceptions import TranscriptError
 router = APIRouter()
 
 
+_rag_service_instance = None
+
 def get_rag_service() -> RAGService:
-    return RAGService()
+    global _rag_service_instance
+    if _rag_service_instance is None:
+        _rag_service_instance = RAGService()
+    return _rag_service_instance
+
 
 
 @router.post("/search", response_model=RAGSearchResponse)
@@ -17,7 +23,7 @@ def semantic_search(payload: RAGSearchRequest, service: RAGService = Depends(get
     Auto-chunks and indexes the transcript if called for the first time.
     """
     try:
-        results = service.search_transcript(payload.video_id, payload.query)
+        results = service.search_transcript(payload.video_id, payload.query, language=payload.language)
         return RAGSearchResponse(success=True, results=results)
     except TranscriptError as te:
         # Pass transcript-specific exceptions (disabled captions, video unavailable) as 400s

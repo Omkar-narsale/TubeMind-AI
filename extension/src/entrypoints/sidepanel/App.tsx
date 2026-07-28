@@ -24,6 +24,52 @@ function parseTimestampToSeconds(ts: string): number {
   return 0;
 }
 
+interface InterviewQuestion {
+  question: string;
+  answer: string;
+  difficulty: "Easy" | "Medium" | "Hard" | string;
+}
+
+function parseInterviewQuestions(text: string): InterviewQuestion[] {
+  if (!text) return [];
+  const questions: InterviewQuestion[] = [];
+  
+  // Split the text into blocks by "Q:" or "Question:" (case insensitive)
+  const blocks = text.split(/(?:^|\n)(?=Q\d*[:\-\s]|Question\d*[:\-\s])/i);
+  
+  for (const block of blocks) {
+    if (!block.trim()) continue;
+    
+    // Extract Question
+    const qMatch = block.match(/(?:Q\d*|Question\d*)\s*[:\-\s]\s*(.*)/i);
+    if (!qMatch) continue;
+    const question = qMatch[1].trim();
+    
+    // Extract Answer / Expected Answer
+    const aMatch = block.match(/(?:A\d*|Answer\d*|Expected\s+Answer\d*)\s*[:\-\s]\s*([\s\S]*?)(?=(?:\nDifficulty:|$))/i);
+    const answer = aMatch ? aMatch[1].trim() : "";
+    
+    // Extract Difficulty
+    const dMatch = block.match(/Difficulty\s*[:\-\s]\s*(Easy|Medium|Hard)/i);
+    const difficulty = dMatch ? dMatch[1].trim() : "Medium";
+    
+    if (question) {
+      questions.push({ question, answer, difficulty });
+    }
+  }
+  
+  // Fallback if parsing returns nothing: treat the whole text as one question
+  if (questions.length === 0 && text.trim().length > 0) {
+    questions.push({
+      question: "Interview Questions",
+      answer: text,
+      difficulty: "Medium"
+    });
+  }
+  
+  return questions;
+}
+
 interface MarkdownRendererProps {
   content: string;
 }
@@ -170,7 +216,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function App() {
-  const { loadSettings } = useSettingsStore();
+  const { settings, updateSettings, loadSettings } = useSettingsStore();
   const { status: connectionStatus, checkHealth } = useConnectionStore();
   const { currentVideo, setVideoInfo, resetVideoInfo } = useVideoStore();
   
@@ -215,39 +261,67 @@ export function App() {
   const [showLLMSettings, setShowLLMSettings] = useState(false);
   
   // Learning features state & store
-  const [activeTab, setActiveTab] = useState<"chat" | "summary" | "notes" | "takeaways">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "summary" | "notes" | "takeaways" | "quiz" | "flashcards" | "interview">("chat");
   const [summaryType, setSummaryType] = useState<"short" | "detailed" | "bullet">("short");
 
   const {
     summary,
     studyNotes,
     takeaways,
+    quiz,
+    flashcards,
+    interviewQuestions,
     loadingSummary,
     loadingNotes,
     loadingTakeaways,
+    loadingQuiz,
+    loadingFlashcards,
+    loadingInterview,
     errorSummary,
     errorNotes,
     errorTakeaways,
+    errorQuiz,
+    errorFlashcards,
+    errorInterview,
     generateSummary,
     generateStudyNotes,
     generateTakeaways,
+    generateQuiz,
+    generateFlashcards,
+    generateInterviewQuestions,
   } = useLearningStore();
+
+
 
   const activeVideoId = currentVideo.videoId || "";
   const currentVideoMessages = activeVideoId ? (chatMessagesMap[activeVideoId] || []) : [];
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-generate active tab data if not already cached
+  // Uses a cancelled flag to prevent StrictMode double-fire from sending duplicate requests
   useEffect(() => {
-    if (currentVideo.videoId) {
+    let cancelled = false;
+    console.debug("[DEBUG][App] useEffect[activeTab] fired:", { activeTab, videoId: currentVideo.videoId, summaryType });
+
+    if (currentVideo.videoId && !cancelled) {
       if (activeTab === "summary") {
         generateSummary(currentVideo.videoId, summaryType);
       } else if (activeTab === "notes") {
         generateStudyNotes(currentVideo.videoId);
       } else if (activeTab === "takeaways") {
         generateTakeaways(currentVideo.videoId);
+      } else if (activeTab === "quiz") {
+        generateQuiz(currentVideo.videoId);
+      } else if (activeTab === "flashcards") {
+        generateFlashcards(currentVideo.videoId);
+      } else if (activeTab === "interview") {
+        generateInterviewQuestions(currentVideo.videoId);
       }
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeTab, currentVideo.videoId, summaryType]);
 
   // Sync state and check connection
@@ -436,6 +510,49 @@ export function App() {
         </div>
       </header>
 
+      {/* Response Language Selector Bar */}
+      <div className="px-4 py-2 border-b border-slate-900 bg-slate-900/40 flex items-center justify-between gap-2 shrink-0">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+          🌐 Response Language
+        </span>
+        <select
+          value={settings.responseLanguage || "auto"}
+          onChange={(e) => {
+            const newLang = e.target.value;
+            console.debug("[DEBUG][App] Language changed to:", newLang);
+            updateSettings({ responseLanguage: newLang });
+            if (currentVideo.videoId) {
+              if (activeTab === "summary") {
+                generateSummary(currentVideo.videoId, summaryType, true);
+              } else if (activeTab === "notes") {
+                generateStudyNotes(currentVideo.videoId, true);
+              } else if (activeTab === "takeaways") {
+                generateTakeaways(currentVideo.videoId, true);
+              } else if (activeTab === "interview") {
+                generateInterviewQuestions(currentVideo.videoId, true);
+              }
+            }
+          }}
+          className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary text-slate-200"
+        >
+          <option value="auto">Auto (Default)</option>
+          <option value="en">English</option>
+          <option value="hi">Hindi</option>
+          <option value="mr">Marathi</option>
+          <option value="ta">Tamil</option>
+          <option value="te">Telugu</option>
+          <option value="kn">Kannada</option>
+          <option value="gu">Gujarati</option>
+          <option value="pa">Punjabi</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="ja">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="zh">Chinese</option>
+        </select>
+      </div>
+
       {/* LLM Configuration Panel */}
       {showLLMSettings && currentVideo.videoId && (
         <div className="bg-slate-900/95 border-b border-slate-800 p-4 space-y-3 animate-in slide-in-from-top duration-200">
@@ -476,6 +593,7 @@ export function App() {
             />
           </div>
 
+
           <div className="flex items-center justify-between pt-1">
             <span className="text-[10px] text-slate-400">Enable Streaming</span>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -502,21 +620,21 @@ export function App() {
               {tabError}
             </p>
           </div>
-        ) : currentVideo.isValid ? (
+        ) : currentVideo.videoId ? (
           <div className="flex-1 flex flex-col min-h-0">
             {/* Tab Navigation */}
-            <div className="flex border-b border-slate-900 bg-slate-950 px-2 pt-1 shrink-0 gap-1">
-              {(["chat", "summary", "notes", "takeaways"] as const).map((tab) => (
+            <div className="flex border-b border-slate-900 bg-slate-950 px-2 pt-1 shrink-0 gap-1 overflow-x-auto scrollbar-none">
+              {(["chat", "summary", "notes", "takeaways", "interview"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-t-lg border-b-2 transition-all ${
+                  className={`flex-1 min-w-[70px] py-2 text-[10px] font-bold uppercase tracking-wider rounded-t-lg border-b-2 transition-all ${
                     activeTab === tab
                       ? "text-primary border-primary bg-slate-900/50"
                       : "text-slate-500 border-transparent hover:text-slate-300"
                   }`}
                 >
-                  {tab === "notes" ? "Study Notes" : tab === "takeaways" ? "Takeaways" : tab}
+                  {tab === "notes" ? "Study Notes" : tab === "takeaways" ? "Takeaways" : tab === "interview" ? "Interview Questions" : tab}
                 </button>
               ))}
             </div>
@@ -733,7 +851,10 @@ export function App() {
                 </>
               )}
 
-              {activeTab === "summary" && activeVideoId && (
+              {activeTab === "summary" && activeVideoId && (() => {
+                const summaryData = summary[activeVideoId]?.[summaryType];
+                console.debug("[DEBUG][App] Rendering summary tab:", { activeVideoId, summaryType, hasData: !!summaryData, dataLength: summaryData?.length, loadingSummary, errorSummary });
+                return (
                 <div className="space-y-4 animate-in fade-in duration-200">
                   <div className="flex gap-2">
                     {(["short", "detailed", "bullet"] as const).map((type) => (
@@ -795,7 +916,8 @@ export function App() {
                     )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {activeTab === "notes" && activeVideoId && (
                 <div className="space-y-4 animate-in fade-in duration-200">
@@ -901,6 +1023,178 @@ export function App() {
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-500 text-center py-10">No takeaways generated.</p>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "quiz" && activeVideoId && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 space-y-3 shadow-sm relative group">
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Practice Quiz
+                      </span>
+                      {quiz[activeVideoId] && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigator.clipboard.writeText(quiz[activeVideoId] || "")}
+                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+                            title="Copy Quiz"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => generateQuiz(activeVideoId, true)}
+                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+                            title="Regenerate Quiz"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {loadingQuiz ? (
+                      <div className="space-y-3 py-4 animate-pulse">
+                        <div className="h-3.5 bg-slate-800 rounded w-3/4 animate-bounce"></div>
+                        <div className="h-3.5 bg-slate-800 rounded w-full"></div>
+                      </div>
+                    ) : errorQuiz ? (
+                      <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>{errorQuiz}</span>
+                      </div>
+                    ) : (
+                      <div className="text-xs leading-relaxed text-slate-200">
+                        <MarkdownRenderer content={quiz[activeVideoId] || "No quiz generated."} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "flashcards" && activeVideoId && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 space-y-3 shadow-sm relative group">
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Flashcards
+                      </span>
+                      {flashcards[activeVideoId] && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigator.clipboard.writeText(flashcards[activeVideoId] || "")}
+                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+                            title="Copy Flashcards"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => generateFlashcards(activeVideoId, true)}
+                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+                            title="Regenerate Flashcards"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {loadingFlashcards ? (
+                      <div className="space-y-3 py-4 animate-pulse">
+                        <div className="h-3.5 bg-slate-800 rounded w-3/4 animate-bounce"></div>
+                        <div className="h-3.5 bg-slate-800 rounded w-full"></div>
+                      </div>
+                    ) : errorFlashcards ? (
+                      <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>{errorFlashcards}</span>
+                      </div>
+                    ) : (
+                      <div className="text-xs leading-relaxed text-slate-200">
+                        <MarkdownRenderer content={flashcards[activeVideoId] || "No flashcards generated."} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "interview" && activeVideoId && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Interview Questions ({parseInterviewQuestions(interviewQuestions[activeVideoId] || "").length || 0})
+                    </span>
+                    {interviewQuestions[activeVideoId] && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(interviewQuestions[activeVideoId] || "")}
+                          className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+                          title="Copy Interview Questions"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => generateInterviewQuestions(activeVideoId, true)}
+                          className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+                          title="Regenerate Interview Questions"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {loadingInterview ? (
+                    <div className="space-y-3 animate-pulse">
+                      {[1, 2, 3].map((n) => (
+                        <div key={n} className="bg-slate-900 border border-slate-800/80 rounded-xl p-4 h-24 w-full"></div>
+                      ))}
+                    </div>
+                  ) : errorInterview ? (
+                    <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span>{errorInterview}</span>
+                    </div>
+                  ) : parseInterviewQuestions(interviewQuestions[activeVideoId] || "").length > 0 ? (
+                    <div className="space-y-4">
+                      {parseInterviewQuestions(interviewQuestions[activeVideoId] || "").map((item, index) => {
+                        const difficultyColor = 
+                          item.difficulty.toLowerCase() === "easy" 
+                            ? "text-emerald-400 bg-emerald-950/30 border-emerald-900/50" 
+                            : item.difficulty.toLowerCase() === "hard" 
+                            ? "text-rose-400 bg-rose-950/30 border-rose-900/50" 
+                            : "text-amber-400 bg-amber-950/30 border-amber-900/50";
+                        return (
+                          <div
+                            key={index}
+                            className="bg-slate-900 border border-slate-800/80 rounded-xl p-4 space-y-3 shadow-sm hover:shadow-md transition-shadow animate-in slide-in-from-bottom-2 duration-300"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-500">
+                                Question {index + 1}
+                              </span>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${difficultyColor}`}>
+                                {item.difficulty}
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-100 leading-relaxed">
+                              {item.question}
+                            </h4>
+                            <div className="pt-2.5 border-t border-slate-800/60 space-y-1">
+                              <span className="text-[9px] uppercase font-extrabold text-slate-500 block tracking-wider">
+                                Expected Answer
+                              </span>
+                              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+                                {item.answer}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 text-center py-10">No interview questions generated.</p>
                   )}
                 </div>
               )}

@@ -16,7 +16,9 @@ const DEFAULT_SETTINGS: ExtensionSettings = {
   theme: "system",
   selectedModel: "tubemind-model-v1",
   apiKey: "",
+  responseLanguage: "auto",
 };
+
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: DEFAULT_SETTINGS,

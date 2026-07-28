@@ -1,5 +1,6 @@
 from enum import Enum
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, model_validator
 
 
 class SummaryType(str, Enum):
@@ -8,19 +9,42 @@ class SummaryType(str, Enum):
     BULLET = "bullet"
 
 
-class SummaryRequest(BaseModel):
+class BaseLearningRequest(BaseModel):
     video_id: str
+    language: Optional[str] = None
+    output_language: Optional[str] = None
+
+    @property
+    def resolved_language(self) -> str:
+        return self.output_language or self.language or "auto"
+
+
+class SummaryRequest(BaseLearningRequest):
     summary_type: SummaryType
 
 
-class NotesRequest(BaseModel):
-    video_id: str
+class NotesRequest(BaseLearningRequest):
+    pass
 
 
-class TakeawaysRequest(BaseModel):
-    video_id: str
+class TakeawaysRequest(BaseLearningRequest):
+    pass
+
+
+class QuizRequest(BaseLearningRequest):
+    pass
+
+
+class FlashcardsRequest(BaseLearningRequest):
+    pass
+
+
+class InterviewRequest(BaseLearningRequest):
+    pass
 
 
 class LearningResponse(BaseModel):
     success: bool
     data: str
+
+

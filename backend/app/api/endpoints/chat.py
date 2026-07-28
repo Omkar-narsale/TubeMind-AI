@@ -9,8 +9,14 @@ import json
 router = APIRouter()
 
 
+_chat_service_instance = None
+
 def get_llm_chat_service() -> LLMChatService:
-    return LLMChatService()
+    global _chat_service_instance
+    if _chat_service_instance is None:
+        _chat_service_instance = LLMChatService()
+    return _chat_service_instance
+
 
 
 @router.post("")
@@ -32,6 +38,7 @@ async def chat_endpoint(
                         history=payload.history,
                         temperature=payload.temperature,
                         max_tokens=payload.max_tokens,
+                        language=payload.language,
                     ):
                         data_payload = json.dumps({"event": event_type, "data": content})
                         yield f"data: {data_payload}\n\n"
@@ -53,6 +60,7 @@ async def chat_endpoint(
                 history=payload.history,
                 temperature=payload.temperature,
                 max_tokens=payload.max_tokens,
+                language=payload.language,
             )
             data = ChatResponse(success=True, answer=answer, context=context, metadata=metadata)
             return APIResponse(

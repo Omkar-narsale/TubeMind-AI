@@ -2,6 +2,31 @@ from typing import List, Dict, Any
 from app.rag.models import SemanticChunk
 
 
+import re
+
+SPONSOR_KEYWORDS = re.compile(
+    r'\b(sponsor|sponsored|patreon|nordvpn|squarespace|expressvpn|audible|skillshare|dollar shave|athletic greens|hello fresh|ridge wallet|link in the description|my channel|subscribe to|hit the bell|thanks for watching|welcome back|hey guys|support the channel|discount code|promo code)\b',
+    re.IGNORECASE
+)
+
+INTRO_OUTRO_KEYWORDS = re.compile(
+    r'\b(hello everyone|welcome back|goodbye|see you next time|bye for now|in this video we|today we are going to|thanks for watching|subscribe to my|click the link|leave a comment)\b',
+    re.IGNORECASE
+)
+
+def clean_chunk_text(text: str) -> str:
+    """Removes filler sentences, sponsor messages, and intros/outros from chunk text."""
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    cleaned = []
+    for sent in sentences:
+        s_strip = sent.strip()
+        if not s_strip:
+            continue
+        if SPONSOR_KEYWORDS.search(s_strip) or INTRO_OUTRO_KEYWORDS.search(s_strip):
+            continue
+        cleaned.append(s_strip)
+    return " ".join(cleaned)
+
 def chunk_transcript(segments: List[Dict[str, Any]], chunk_size: int = 500, overlap: int = 100) -> List[SemanticChunk]:
     """
     Groups YouTube transcript segments into larger semantic chunks.
@@ -25,17 +50,20 @@ def chunk_transcript(segments: List[Dict[str, Any]], chunk_size: int = 500, over
         if current_length >= chunk_size:
             # Create a completed chunk
             text = " ".join([s.get("text", "") for s in current_segments])
-            start_time = float(current_segments[0].get("start", 0.0))
-            last_seg = current_segments[-1]
-            end_time = float(last_seg.get("start", 0.0)) + float(last_seg.get("duration", 0.0))
+            cleaned_text = clean_chunk_text(text)
+            
+            if cleaned_text.strip():
+                start_time = float(current_segments[0].get("start", 0.0))
+                last_seg = current_segments[-1]
+                end_time = float(last_seg.get("start", 0.0)) + float(last_seg.get("duration", 0.0))
 
-            chunks.append(SemanticChunk(
-                text=text,
-                start_time=start_time,
-                end_time=end_time,
-                chunk_index=chunk_index
-            ))
-            chunk_index += 1
+                chunks.append(SemanticChunk(
+                    text=cleaned_text,
+                    start_time=start_time,
+                    end_time=end_time,
+                    chunk_index=chunk_index
+                ))
+                chunk_index += 1
 
             # Accumulate overlap segments from the end
             overlap_segments: List[Dict[str, Any]] = []
@@ -57,17 +85,20 @@ def chunk_transcript(segments: List[Dict[str, Any]], chunk_size: int = 500, over
     # Add trailing segment residue
     if current_segments:
         text = " ".join([s.get("text", "") for s in current_segments])
-        start_time = float(current_segments[0].get("start", 0.0))
-        last_seg = current_segments[-1]
-        end_time = float(last_seg.get("start", 0.0)) + float(last_seg.get("duration", 0.0))
+        cleaned_text = clean_chunk_text(text)
+        if cleaned_text.strip():
+            start_time = float(current_segments[0].get("start", 0.0))
+            last_seg = current_segments[-1]
+            end_time = float(last_seg.get("start", 0.0)) + float(last_seg.get("duration", 0.0))
 
-        # Only add if it's not a duplicate of the last chunk
-        if not chunks or chunks[-1].text != text:
-            chunks.append(SemanticChunk(
-                text=text,
-                start_time=start_time,
-                end_time=end_time,
-                chunk_index=chunk_index
-            ))
+            # Only add if it's not a duplicate of the last chunk
+            if not chunks or chunks[-1].text != cleaned_text:
+                chunks.append(SemanticChunk(
+                    text=cleaned_text,
+                    start_time=start_time,
+                    end_time=end_time,
+                    chunk_index=chunk_index
+                ))
 
     return chunks
+

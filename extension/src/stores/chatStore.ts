@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { chatService, ChatMessageInput, RAGSearchResult } from "@/services/api";
 import { logger } from "@/utils/logger";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export interface ChatMetadata {
   model_name: string;
@@ -97,6 +98,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       try {
         let accumulatedText = "";
+        const lang = useSettingsStore.getState().settings.responseLanguage || "auto";
+        console.debug("[DEBUG][chatStore] chatStream language:", lang);
         await chatService.chatStream(
           {
             video_id: videoId,
@@ -104,6 +107,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             history: historyPayload,
             temperature,
             max_tokens: maxTokens,
+            language: lang,
           },
           (context) => {
             // Update the message citations
@@ -193,6 +197,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     } else {
       try {
+        const lang = useSettingsStore.getState().settings.responseLanguage || "auto";
+        console.debug("[DEBUG][chatStore] chat (non-streaming) language:", lang);
         const response = await chatService.chat({
           video_id: videoId,
           query,
@@ -200,6 +206,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           temperature,
           max_tokens: maxTokens,
           stream: false,
+          language: lang,
         });
 
         const aiMessage: ChatMessage = {

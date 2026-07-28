@@ -12,6 +12,7 @@ class SemanticChunk(BaseModel):
 class RAGSearchRequest(BaseModel):
     video_id: str
     query: str
+    language: Optional[str] = "auto"
 
 
 class RAGSearchResult(BaseModel):

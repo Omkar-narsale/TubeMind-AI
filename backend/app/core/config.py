@@ -40,6 +40,32 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
+    # Routing Models
+    CHAT_MODEL: str = "llama-3.1-8b-instant"
+    SUMMARY_MODEL: str = "llama-3.3-70b-versatile"
+    NOTES_MODEL: str = "llama-3.1-8b-instant"
+    TAKEAWAYS_MODEL: str = "llama-3.1-8b-instant"
+    QUIZ_MODEL: str = "llama-3.1-8b-instant"
+    FLASHCARD_MODEL: str = "llama-3.1-8b-instant"
+    INTERVIEW_MODEL: str = "llama-3.1-8b-instant"
+
+    # Optimization settings
+    CACHE_TTL_SECONDS: int = 1800
+    LLM_RETRY_COUNT: int = 2
+    LLM_RETRY_DELAY_SECONDS: float = 1.0
+    COMPRESSION_RATIO: float = 0.4
+    CHUNK_SIZE: int = 500
+    TOP_K: int = 5
+    TOTAL_BUDGET_LIMIT: int = 6000
+    MAX_CONTEXT_BUDGET: int = 3000
+    MAX_PROMPT_TOKENS: int = 5000
+    SUMMARY_CONTEXT_LIMIT: int = 3000
+    CHAT_CONTEXT_LIMIT: int = 2500
+    MAX_HISTORY: int = 6
+    MAX_CHUNKS: int = 8
+    DEFAULT_OUTPUT_LANGUAGE: str = "en"
+    SAFETY_MARGIN: float = 0.75
+
     model_config = SettingsConfigDict(
         env_file=env_path, env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )

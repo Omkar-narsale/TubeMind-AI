@@ -12,17 +12,27 @@ from app.transcript.exceptions import (
 router = APIRouter()
 
 
+_transcript_service_instance = None
+
 def get_transcript_service() -> TranscriptService:
-    return TranscriptService()
+    global _transcript_service_instance
+    if _transcript_service_instance is None:
+        _transcript_service_instance = TranscriptService()
+    return _transcript_service_instance
+
 
 
 @router.get("/{video_id}")
-def get_transcript(video_id: str, service: TranscriptService = Depends(get_transcript_service)):
+def get_transcript(
+    video_id: str, 
+    language: str = "auto",
+    service: TranscriptService = Depends(get_transcript_service)
+):
     """
-    Retrieves the English transcript (manual or auto-generated) for a YouTube video.
+    Retrieves the transcript (manual, auto-generated, or translated) for a YouTube video.
     """
     try:
-        data = service.get_transcript(video_id)
+        data = service.get_transcript(video_id, target_language=language)
         return data
     except InvalidVideoIdError as e:
         raise HTTPException(

@@ -71,3 +71,33 @@ def test_chat_endpoint_non_streaming(mock_create, mock_search, mock_val):
     assert json_data["success"] is True
     assert json_data["data"]["answer"] == "Neural networks process data as described at [00:10]."
     assert len(json_data["data"]["context"]) == 2
+
+
+def test_prompt_builder_hybrid():
+    builder = PromptBuilder()
+    query = "Give a real-world example."
+    messages = builder.build_prompt_messages(query, MOCK_CHUNKS, [], classification="EXAMPLE")
+    
+    assert len(messages) == 3
+    assert messages[0]["role"] == "system"
+    assert "YouTube learning assistant" in messages[0]["content"]  # Unified prompt
+    assert messages[1]["role"] == "system"
+    assert "[Index: 0]" in messages[1]["content"]
+    assert messages[2]["role"] == "user"
+    assert messages[2]["content"] == query
+
+
+def test_prompt_builder_factual():
+    builder = PromptBuilder()
+    query = "What did the speaker say at 5:20?"
+    messages = builder.build_prompt_messages(query, MOCK_CHUNKS, [], classification="FACTUAL")
+    
+    assert len(messages) == 3
+    assert messages[0]["role"] == "system"
+    assert "YouTube learning assistant" in messages[0]["content"]  # Unified prompt
+    assert messages[1]["role"] == "system"
+    assert "[Index: 0]" in messages[1]["content"]
+    assert messages[2]["role"] == "user"
+    assert messages[2]["content"] == query
+
+

@@ -1,52 +1,40 @@
-SUMMARY_SHORT_PROMPT = (
-    "You are an expert learning assistant. Summarize the following video transcript in about 150 words.\n"
-    "Focus on the main idea, keep it extremely easy to read, and highlight the core message.\n\n"
-    "Transcript:\n{transcript}\n\n"
-    "Summary:"
+from app.llm.prompts import (
+    SUMMARY_SHORT_PROMPT,
+    SUMMARY_DETAILED_PROMPT,
+    SUMMARY_BULLET_PROMPT,
+    STUDY_NOTES_PROMPT,
+    KEY_TAKEAWAYS_PROMPT,
 )
 
-SUMMARY_DETAILED_PROMPT = (
-    "You are an expert learning assistant. Provide a structured, detailed summary of the following video transcript.\n"
-    "Structure it with clear headings, important concepts, technical details, and examples where available. "
-    "Ensure technical accuracy is preserved.\n\n"
-    "Transcript:\n{transcript}\n\n"
-    "Detailed Summary:"
+QUIZ_PROMPT = (
+    "Generate a multiple-choice quiz of 3-5 questions based on the following context.\n"
+    "Format precisely as:\n"
+    "Q1: [Question]\n"
+    "A) [Option A]\n"
+    "B) [Option B]\n"
+    "C) [Option C]\n"
+    "D) [Option D]\n"
+    "Correct: [A/B/C/D]\n\n"
+    "Context:\n{context}\n\n"
+    "Quiz:"
 )
 
-SUMMARY_BULLET_PROMPT = (
-    "You are an expert learning assistant. Summarize the following video transcript as a concise list of bullet points.\n"
-    "Use bullet points like:\n"
-    "• Main topic details\n"
-    "• Key concepts\n"
-    "• Practical applications\n\n"
-    "Transcript:\n{transcript}\n\n"
-    "Bullet Summary:"
+FLASHCARDS_PROMPT = (
+    "Generate 3-5 flashcards based on the following context.\n"
+    "Format precisely as:\n"
+    "Card [Num] Front: [Question]\n"
+    "Card [Num] Back: [Answer]\n\n"
+    "Context:\n{context}\n\n"
+    "Flashcards:"
 )
 
-STUDY_NOTES_PROMPT = (
-    "You are a stellar academic student. Create a set of structured, complete study notes from the following video transcript.\n"
-    "Use Markdown format precisely with headings:\n"
-    "# [Main Topic Title]\n"
-    "## Definition\n"
-    "## Explanation\n"
-    "## Important Concepts\n"
-    "## Examples\n"
-    "## Applications\n"
-    "## Advantages\n"
-    "## Limitations\n"
-    "## Final Revision Notes\n\n"
-    "Ensure all technical details, code blocks (if any), and math concepts are preserved.\n\n"
-    "Transcript:\n{transcript}\n\n"
-    "Study Notes:"
-)
-
-KEY_TAKEAWAYS_PROMPT = (
-    "You are a learning assistant. Extract the most important, actionable key takeaways from the following video transcript.\n"
-    "Return between 5 and 15 takeaways. Format them as a flat bulleted list using the checkmark symbol (✓) for each point.\n"
-    "Each takeaway must be short, actionable, and easy to revise.\n"
-    "Example:\n"
-    "✓ Backpropagation minimizes prediction error.\n"
-    "✓ Hidden layers extract useful features.\n\n"
-    "Transcript:\n{transcript}\n\n"
-    "Key Takeaways:"
+INTERVIEW_PROMPT = (
+    "Generate 3-5 technical interview questions and answers based on the following context.\n"
+    "For each question, specify a difficulty level of either Easy, Medium, or Hard.\n"
+    "Format precisely as:\n"
+    "Q: [Question]\n"
+    "A: [Answer]\n"
+    "Difficulty: [Easy/Medium/Hard]\n\n"
+    "Context:\n{context}\n\n"
+    "Interview Questions:"
 )

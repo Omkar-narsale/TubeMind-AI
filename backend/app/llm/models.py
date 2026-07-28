@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
     temperature: Optional[float] = 0.7
     max_tokens: Optional[int] = 1024
     stream: Optional[bool] = True
+    language: Optional[str] = "auto"
 
 
 class ChatMetadata(BaseModel):

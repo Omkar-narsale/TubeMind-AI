@@ -7,22 +7,28 @@ class TranscriptCache:
         self.ttl: int = ttl_seconds
         self.cache: Dict[str, Dict[str, Any]] = {}
 
-    def get(self, video_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, video_id: str, language: str = "auto") -> Optional[Dict[str, Any]]:
         """Retrieve entry from cache if it exists and has not expired."""
-        if video_id not in self.cache:
-            return None
+        key = f"{video_id}:{language}"
+        if key not in self.cache:
+            # Fallback check for legacy non-templated key
+            if video_id in self.cache:
+                key = video_id
+            else:
+                return None
         
-        entry = self.cache[video_id]
+        entry = self.cache[key]
         if time.time() > entry["expires_at"]:
             # Clean up expired entry
-            del self.cache[video_id]
+            del self.cache[key]
             return None
             
         return entry["data"]
 
-    def set(self, video_id: str, data: Dict[str, Any]) -> None:
+    def set(self, video_id: str, data: Dict[str, Any], language: str = "auto") -> None:
         """Store transcript details in cache with expiration timestamp."""
-        self.cache[video_id] = {
+        key = f"{video_id}:{language}"
+        self.cache[key] = {
             "expires_at": time.time() + self.ttl,
             "data": data
         }

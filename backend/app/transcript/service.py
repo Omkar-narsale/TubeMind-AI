@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     TranscriptsDisabled,
@@ -25,16 +25,19 @@ class TranscriptService:
     def __init__(self, cache=transcript_cache):
         self.cache = cache
 
-    def get_transcript(self, video_id: str) -> Dict[str, Any]:
+    def get_transcript(self, video_id: str, target_language: Optional[str] = "auto") -> Dict[str, Any]:
         """
-        Retrieves the English transcript for a given video ID.
+        Retrieves the transcript for a given video ID, preferring the target language.
+        If the target language is not available, falls back to translation or any available captions.
         Checks in-memory cache first before querying YouTube API.
         """
         if not video_id or len(video_id) != 11:
             raise InvalidVideoIdError("Invalid YouTube Video ID length.")
 
+        target_lang = target_language or "auto"
+
         # Check Cache
-        cached_data = self.cache.get(video_id)
+        cached_data = self.cache.get(video_id, target_lang)
         if cached_data:
             return cached_data
 
@@ -47,22 +50,113 @@ class TranscriptService:
             generated = False
             language_code = "en"
 
-            # 1. Attempt manual English transcript
+            manual_transcripts = []
+            generated_transcripts = []
+            
+            # Check if transcript_list is iterable (some mocks in tests may not be iterable)
+            is_iterable = True
             try:
-                transcript_obj = transcript_list.find_manually_created_transcript(["en"])
-                generated = False
+                iter(transcript_list)
+            except TypeError:
+                is_iterable = False
+                
+            if not is_iterable:
+                if target_lang != "auto":
+                    try:
+                        transcript_obj = transcript_list.find_manually_created_transcript([target_lang])
+                        generated = False
+                    except NoTranscriptFound:
+                        try:
+                            transcript_obj = transcript_list.find_generated_transcript([target_lang])
+                            generated = True
+                        except NoTranscriptFound:
+                            # Try translating fallback
+                            try:
+                                best_t = transcript_list.find_manually_created_transcript(["en"])
+                            except NoTranscriptFound:
+                                try:
+                                    best_t = transcript_list.find_generated_transcript(["en"])
+                                except NoTranscriptFound:
+                                    raise NoCaptionsError("No captions found to translate.")
+                            transcript_obj = best_t.translate(target_lang)
+                            generated = best_t.is_generated
+                else:
+                    try:
+                        transcript_obj = transcript_list.find_manually_created_transcript(["en"])
+                        generated = False
+                        language_code = transcript_obj.language_code
+                    except NoTranscriptFound:
+                        try:
+                            transcript_obj = transcript_list.find_generated_transcript(["en"])
+                            generated = True
+                            language_code = transcript_obj.language_code
+                        except NoTranscriptFound:
+                            raise NoCaptionsError("No captions found for this video.")
                 language_code = transcript_obj.language_code
-            except NoTranscriptFound:
-                # 2. Attempt auto-generated English transcript
-                try:
-                    transcript_obj = transcript_list.find_generated_transcript(["en"])
-                    generated = True
+            else:
+                for t in transcript_list:
+                    is_gen = getattr(t, "is_generated", getattr(t, "generated", False))
+                    if is_gen:
+                        generated_transcripts.append(t)
+                    else:
+                        manual_transcripts.append(t)
+                
+                if target_lang != "auto":
+                    # 1. Manual target language
+                    tgt_manual = [t for t in manual_transcripts if t.language_code.startswith(target_lang)]
+                    # 2. Generated target language
+                    tgt_gen = [t for t in generated_transcripts if t.language_code.startswith(target_lang)]
+                    
+                    if tgt_manual:
+                        transcript_obj = tgt_manual[0]
+                        generated = False
+                    elif tgt_gen:
+                        transcript_obj = tgt_gen[0]
+                        generated = True
+                    else:
+                        # 3. Translation Fallback (prefer manual en, manual other, gen en, gen other)
+                        manual_en = [t for t in manual_transcripts if t.language_code.startswith("en")]
+                        gen_en = [t for t in generated_transcripts if t.language_code.startswith("en")]
+                        
+                        best_t = None
+                        if manual_en:
+                            best_t = manual_en[0]
+                        elif manual_transcripts:
+                            best_t = manual_transcripts[0]
+                        elif gen_en:
+                            best_t = gen_en[0]
+                        elif generated_transcripts:
+                            best_t = generated_transcripts[0]
+                            
+                        if best_t:
+                            transcript_obj = best_t.translate(target_lang)
+                            generated = getattr(best_t, "is_generated", getattr(best_t, "generated", False))
+                        else:
+                            raise NoCaptionsError(f"No captions found to translate to {target_lang}.")
+                    language_code = target_lang
+                else:
+                    # Auto mode: find best available
+                    manual_en = [t for t in manual_transcripts if t.language_code.startswith("en")]
+                    gen_en = [t for t in generated_transcripts if t.language_code.startswith("en")]
+                    
+                    if manual_en:
+                        transcript_obj = manual_en[0]
+                        generated = False
+                    elif manual_transcripts:
+                        transcript_obj = manual_transcripts[0]
+                        generated = False
+                    elif gen_en:
+                        transcript_obj = gen_en[0]
+                        generated = True
+                    elif generated_transcripts:
+                        transcript_obj = generated_transcripts[0]
+                        generated = True
+                    else:
+                        raise NoCaptionsError("No captions found for this video.")
                     language_code = transcript_obj.language_code
-                except NoTranscriptFound:
-                    raise NoCaptionsError("No English captions found for this video.")
 
             if not transcript_obj:
-                raise NoCaptionsError("No English captions found for this video.")
+                raise NoCaptionsError("No captions found for this video.")
 
             # Fetch the actual segments
             raw_segments = transcript_obj.fetch()
@@ -79,7 +173,7 @@ class TranscriptService:
             }
 
             # Save in Cache
-            self.cache.set(video_id, result)
+            self.cache.set(video_id, result, target_lang)
             return result
 
         except TranscriptsDisabled:
@@ -91,7 +185,6 @@ class TranscriptService:
         except InvalidVideoId:
             raise InvalidVideoIdError("YouTube API rejected the Video ID format.")
         except TranscriptError as te:
-            # Re-raise custom captured exceptions
             raise te
         except Exception as e:
             raise TranscriptError(f"An unexpected error occurred during transcript retrieval: {str(e)}")

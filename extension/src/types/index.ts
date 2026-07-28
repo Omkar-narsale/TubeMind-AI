@@ -12,7 +12,9 @@ export interface ExtensionSettings {
   theme: "light" | "dark" | "system";
   selectedModel: string;
   apiKey: string;
+  responseLanguage?: string;
 }
+
 
 export type MessageType =
   | "YOUTUBE_VIDEO_DETECTED"

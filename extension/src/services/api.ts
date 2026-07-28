@@ -189,6 +189,7 @@ export interface ChatRequest {
   temperature?: number;
   max_tokens?: number;
   stream?: boolean;
+  language?: string;
 }
 
 export interface ChatMetadata {
@@ -208,6 +209,7 @@ export const chatService = {
   chat: async (payload: ChatRequest): Promise<ChatResponseData> => {
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}/chat`;
+    console.debug("[DEBUG][api] chatService.chat payload:", JSON.stringify(payload));
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -223,6 +225,7 @@ export const chatService = {
     }
 
     const body = await response.json();
+    console.debug("[DEBUG][api] chatService.chat response:", JSON.stringify(body));
     return body.data;
   },
 
@@ -238,6 +241,8 @@ export const chatService = {
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}/chat`;
     const controller = new AbortController();
+
+    console.debug("[DEBUG][api] chatService.chatStream payload:", JSON.stringify(payload));
 
     fetch(url, {
       method: "POST",
@@ -315,47 +320,126 @@ export interface LearningResponse {
 }
 
 export const learningService = {
-  getSummary: async (videoId: string, type: "short" | "detailed" | "bullet"): Promise<LearningResponse> => {
+  getSummary: async (videoId: string, type: "short" | "detailed" | "bullet", language?: string): Promise<LearningResponse> => {
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}/learning/summary`;
+    const payload = { video_id: videoId, summary_type: type, language: language || "auto" };
+    console.debug("[DEBUG][api] getSummary payload:", JSON.stringify(payload));
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_id: videoId, summary_type: type }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      throw new Error("Failed to generate summary");
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getSummary HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate summary (HTTP ${response.status})`);
     }
-    return response.json();
+    const json = await response.json();
+    console.debug("[DEBUG][api] getSummary response:", JSON.stringify(json));
+    return json;
   },
 
-  getStudyNotes: async (videoId: string): Promise<LearningResponse> => {
+  getStudyNotes: async (videoId: string, language?: string): Promise<LearningResponse> => {
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}/learning/study-notes`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getStudyNotes payload:", JSON.stringify(payload));
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_id: videoId }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      throw new Error("Failed to generate study notes");
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getStudyNotes HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate study notes (HTTP ${response.status})`);
     }
-    return response.json();
+    const json = await response.json();
+    console.debug("[DEBUG][api] getStudyNotes response:", JSON.stringify(json));
+    return json;
   },
 
-  getKeyTakeaways: async (videoId: string): Promise<LearningResponse> => {
+  getKeyTakeaways: async (videoId: string, language?: string): Promise<LearningResponse> => {
     const baseUrl = getBaseUrl();
     const url = `${baseUrl}/learning/key-takeaways`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getKeyTakeaways payload:", JSON.stringify(payload));
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_id: videoId }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      throw new Error("Failed to generate key takeaways");
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getKeyTakeaways HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate key takeaways (HTTP ${response.status})`);
     }
-    return response.json();
+    const json = await response.json();
+    console.debug("[DEBUG][api] getKeyTakeaways response:", JSON.stringify(json));
+    return json;
+  },
+
+  getQuiz: async (videoId: string, language?: string): Promise<LearningResponse> => {
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/learning/quiz`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getQuiz payload:", JSON.stringify(payload));
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getQuiz HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate quiz (HTTP ${response.status})`);
+    }
+    const json = await response.json();
+    console.debug("[DEBUG][api] getQuiz response:", JSON.stringify(json));
+    return json;
+  },
+
+  getFlashcards: async (videoId: string, language?: string): Promise<LearningResponse> => {
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/learning/flashcards`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getFlashcards payload:", JSON.stringify(payload));
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getFlashcards HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate flashcards (HTTP ${response.status})`);
+    }
+    const json = await response.json();
+    console.debug("[DEBUG][api] getFlashcards response:", JSON.stringify(json));
+    return json;
+  },
+
+  getInterviewQuestions: async (videoId: string, language?: string): Promise<LearningResponse> => {
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/learning/interview-questions`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getInterviewQuestions payload:", JSON.stringify(payload));
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getInterviewQuestions HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate interview questions (HTTP ${response.status})`);
+    }
+    const json = await response.json();
+    console.debug("[DEBUG][api] getInterviewQuestions response:", JSON.stringify(json));
+    return json;
   },
 };
 
 export default youtubeService;
+
