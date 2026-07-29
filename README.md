@@ -6,7 +6,7 @@
 <h3 align="center">AI-Powered YouTube Learning Assistant</h3>
 
 <p align="center">
-  Retrieval-Augmented Generation • Semantic Search • FAISS • Groq • Chrome Extension
+  Hybrid RAG • Semantic Search • FAISS • Groq • Chrome Extension • Multilingual AI
 </p>
 
 <p align="center">
@@ -18,104 +18,219 @@
 
 ---
 
-## 🚀 Overview
+# 🚀 Overview
 
 TubeMind AI is an AI-powered Chrome Extension that transforms YouTube videos into an interactive learning experience.
 
-Using Retrieval-Augmented Generation (RAG), semantic search, FAISS vector search, and Groq LLMs, TubeMind AI enables users to:
+Using **Hybrid Transcript Retrieval**, **Retrieval-Augmented Generation (RAG)**, **Semantic Search**, **FAISS Vector Search**, **Groq LLMs**, and **Multilingual AI Translation**, TubeMind AI enables users to:
 
 - 💬 Chat with YouTube videos
 - 📄 Generate AI summaries
 - 📝 Create structured study notes
 - 💡 Review key takeaways
+- 💼 Generate interview questions
+- 🌍 Translate AI responses into multiple languages
 - 📍 Jump to timestamp citations
+- 📤 Export learning content
 - 🧠 Learn faster with AI
 
 ---
 
-## ✨ Features
+# 🎯 Key Highlights
 
-### 🤖 AI Chat
+- 🧠 Hybrid Retrieval-Augmented Generation (Hybrid RAG)
+- 🔎 FAISS-based Semantic Search
+- 🌍 Multilingual AI Translation (14+ Languages)
+- 🎥 Hybrid Transcript Retrieval
+- 💬 AI Chat with YouTube Videos
+- 📄 AI-Powered Learning Content Generation
+- 💼 AI Interview Question Generator
+- 📍 Timestamp-Based Context Retrieval
+- 📤 Export to PDF, DOCX & Markdown
+- ⚡ Chrome Extension powered by FastAPI & Groq LLMs
+
+---
+
+# ✨ Features
+
+## 🤖 AI Chat
+
 - Multi-turn conversation memory
 - Streaming AI responses
 - Timestamp citations
 - Markdown rendering
-- Retry & Copy responses
+- Retry responses
+- Copy responses
 
-### 📚 AI Learning
+---
+
+## 📚 AI Learning
+
 - Short Summary
 - Detailed Summary
 - Bullet Summary
 - Study Notes
 - Key Takeaways
+- Interview Questions
 
-### 🧠 RAG Pipeline
-- Transcript Retrieval
+---
+
+## 🌍 Multilingual AI
+
+- Automatic language detection
+- Hybrid transcript retrieval
+- AI-powered translation
+- English
+- Hindi
+- Marathi
+- Tamil
+- Telugu
+- Kannada
+- Gujarati
+- Punjabi
+- Spanish
+- French
+- German
+- Japanese
+- Korean
+- Chinese
+
+Supports translation for:
+
+- Summary
+- Study Notes
+- Key Takeaways
+- Interview Questions
+
+---
+
+## 📤 Export Learning Content
+
+Export generated learning content as:
+
+- 📄 PDF
+- 📝 Microsoft Word (.docx)
+- 📋 Markdown (.md)
+
+Supports exporting:
+
+- Summary
+- Study Notes
+- Key Takeaways
+- Interview Questions
+
+---
+
+## 🧠 Hybrid RAG Pipeline
+
+- Hybrid Transcript Retrieval
+- Transcript Compression
 - Semantic Chunking
 - Sentence Transformers
+- Embedding Generation
 - FAISS Vector Search
-- Semantic Retrieval
+- Hybrid Semantic Search
+- Context Compression
 - Prompt Engineering
+- AI Translation Layer
 
 ---
 
-## 🖼️ Screenshots
-
-> Add your screenshots to the `assets/` folder.
-
-| Chat | Summary |
-|------|---------|
-| ![](assets/chat.png) | ![](assets/summary.png) |
-
-| Study Notes | Takeaways |
-|-------------|-----------|
-| ![](assets/notes.png) | ![](assets/takeaways.png) |
-
----
-
-## 🎥 Demo
-
-<p align="center">
-  <img src="assets/demo.gif" width="900"/>
-</p>
-
----
-
-## 🛠️ Tech Stack
+# 🛠️ Tech Stack
 
 <p align="center">
   <img src="https://skillicons.dev/icons?i=react,ts,tailwind,vite,python,fastapi,git,github,vscode"/>
 </p>
 
-### AI Stack
-- Groq
-- Llama 3.3 70B
-- Sentence Transformers
-- FAISS
-- Retrieval-Augmented Generation (RAG)
-- Prompt Engineering
+## Frontend
+
+- React
+- TypeScript
+- Tailwind CSS
+- Vite
+- Chrome Extension APIs
 
 ---
 
-## 🏗️ Architecture
+## Backend
+
+- FastAPI
+- Python
+- Uvicorn
+
+---
+
+## AI Stack
+
+- Groq
+- Llama 3.3 70B
+- Llama 3.1 8B Instant
+- Sentence Transformers
+- FAISS
+- Hybrid Transcript Retrieval
+- Retrieval-Augmented Generation (RAG)
+- Semantic Search
+- Prompt Engineering
+- AI Translation Pipeline
+
+---
+
+# 🏗️ Architecture
 
 ```mermaid
 flowchart TD
-A[YouTube Video] --> B[Transcript Retrieval]
-B --> C[Semantic Chunking]
-C --> D[Sentence Transformers]
-D --> E[Embeddings]
-E --> F[FAISS Index]
-F --> G[Semantic Search]
-G --> H[Prompt Builder]
-H --> I[Groq LLM]
-I --> J[Streaming Response]
-J --> K[Chrome Extension]
+
+A[YouTube Video]
+--> B[Hybrid Transcript Retrieval]
+
+B
+--> C[Transcript Compression]
+
+C
+--> D[Semantic Chunking]
+
+D
+--> E[Sentence Transformers]
+
+E
+--> F[Embeddings]
+
+F
+--> G[FAISS Index]
+
+G
+--> H[Hybrid Semantic Search]
+
+H
+--> I[Prompt Builder]
+
+I
+--> J[Groq LLM]
+
+J
+--> K[Detailed Summary]
+
+K
+--> L[Study Notes]
+
+K
+--> M[Key Takeaways]
+
+K
+--> N[Interview Questions]
+
+L --> O[Translation Layer]
+M --> O
+N --> O
+K --> O
+
+O
+--> P[Chrome Extension]
 ```
 
 ---
 
-## 📂 Project Structure
+# 📂 Project Structure
 
 ```text
 TubeMind-AI
@@ -126,78 +241,154 @@ TubeMind-AI
 │   ├── chat.png
 │   ├── summary.png
 │   ├── notes.png
-│   └── takeaways.png
+│   ├── takeaways.png
+│   ├── interview.png
+│   └── translation.png
 │
 ├── backend
+│
 ├── extension
+│
 ├── README.md
+│
 └── .gitignore
 ```
 
 ---
 
-## ⚙️ Installation
+# ⚙️ Installation
 
-### Clone
+## Clone Repository
 
 ```bash
 git clone https://github.com/Omkar-narsale/TubeMind-AI.git
+
 cd TubeMind-AI
 ```
 
-### Backend
+---
+
+## Backend Setup
 
 ```bash
 cd backend
+
 pip install -r requirements.txt
 ```
 
-Create a `.env`
+Create a `.env` file:
 
 ```env
 GROQ_API_KEY=YOUR_API_KEY
+
 GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-Run
+Run the backend:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-### Extension
+---
+
+## Chrome Extension Setup
 
 ```bash
 cd extension
+
 npm install
+
 npm run build
 ```
 
-Load the generated `extension/dist` folder from `chrome://extensions` using **Load unpacked**.
+Open:
+
+```
+chrome://extensions
+```
+
+Enable **Developer Mode**
+
+Click:
+
+**Load unpacked**
+
+Select:
+
+```
+extension/dist
+```
 
 ---
 
-## 📖 Usage
+# 📖 Usage
 
 1. Open any YouTube video.
 2. Launch TubeMind AI.
-3. Wait for transcript processing.
+3. Wait for Hybrid Transcript Processing.
 4. Chat with the video.
-5. Generate summaries.
-6. Generate study notes.
-7. Review key takeaways.
+5. Generate AI Summary.
+6. Create Study Notes.
+7. Review Key Takeaways.
+8. Generate Interview Questions.
+9. Translate content into your preferred language.
+10. Export learning content as PDF, DOCX or Markdown.
 
 ---
 
-## 🛣️ Roadmap
+# 🌍 Supported Languages
 
-### ✅ Completed
+- Auto
+- English
+- Hindi
+- Marathi
+- Tamil
+- Telugu
+- Kannada
+- Gujarati
+- Punjabi
+- Spanish
+- French
+- German
+- Japanese
+- Korean
+- Chinese
+
+---
+
+# 📤 Export Formats
+
+TubeMind AI supports exporting generated learning content in:
+
+- PDF (.pdf)
+- Microsoft Word (.docx)
+- Markdown (.md)
+
+Available for:
+
+- Summary
+- Study Notes
+- Key Takeaways
+- Interview Questions
+
+---
+
+# 🛣️ Roadmap
+
+## ✅ Completed
+
 - Chrome Extension
 - FastAPI Backend
-- Transcript Retrieval
-- Semantic Search
-- FAISS
-- RAG
+- Hybrid Transcript Retrieval
+- Transcript Compression
+- Semantic Chunking
+- Context Compression
+- Sentence Transformers
+- Embedding Generation
+- FAISS Vector Database
+- Hybrid Semantic Search
+- Hybrid RAG Pipeline
 - Groq Integration
 - Streaming Chat
 - Conversation Memory
@@ -205,27 +396,33 @@ Load the generated `extension/dist` folder from `chrome://extensions` using **Lo
 - AI Summary
 - Study Notes
 - Key Takeaways
-
-### 🚧 Coming Soon
-- Hybrid RAG
-- Flashcards
-- Quiz Generator
-- Practice Questions
-- PDF Export
-- Bookmarks
-- Learning Dashboard
-- User API Key Support
-- Chrome Web Store Release
+- Interview Questions
+- Multilingual AI Translation
+- Export to PDF
+- Export to DOCX
+- Export to Markdown
 
 ---
 
-## 🤝 Contributing
+## 🚧 Coming Soon
+
+- Learning Dashboard
+- User API Key Support
+- Bookmark & Saved Sessions
+- Chrome Web Store Release
+- Cloud Sync
+
+---
+
+# 🤝 Contributing
 
 Contributions are welcome!
 
 ```bash
 git checkout -b feature/my-feature
+
 git commit -m "Add amazing feature"
+
 git push origin feature/my-feature
 ```
 
@@ -233,25 +430,29 @@ Open a Pull Request.
 
 ---
 
-## 📄 License
+# 📄 License
 
 Licensed under the MIT License.
 
 ---
 
-## 👨‍💻 Author
+# 👨‍💻 Author
 
 **Omkar Narsale**
 
 - GitHub: https://github.com/Omkar-narsale
-- LinkedIn: www.linkedin.com/in/omkar-narsale45
+- LinkedIn: https://www.linkedin.com/in/omkar-narsale45
 
 ---
 
-## ⭐ Support
+# ⭐ Support
 
 If you found this project useful, please give it a ⭐ on GitHub.
 
+It helps others discover the project and supports future development.
+
+---
+
 <p align="center">
-  Made with ❤️ using React, FastAPI, FAISS and Groq.
+Made with ❤️ using React, FastAPI, Hybrid RAG, FAISS and Groq.
 </p>
