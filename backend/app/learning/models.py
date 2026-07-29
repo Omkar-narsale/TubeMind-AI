@@ -31,14 +31,6 @@ class TakeawaysRequest(BaseLearningRequest):
     pass
 
 
-class QuizRequest(BaseLearningRequest):
-    pass
-
-
-class FlashcardsRequest(BaseLearningRequest):
-    pass
-
-
 class InterviewRequest(BaseLearningRequest):
     pass
 

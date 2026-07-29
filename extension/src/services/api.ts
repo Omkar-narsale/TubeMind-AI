@@ -380,45 +380,7 @@ export const learningService = {
     return json;
   },
 
-  getQuiz: async (videoId: string, language?: string): Promise<LearningResponse> => {
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/learning/quiz`;
-    const payload = { video_id: videoId, language: language || "auto" };
-    console.debug("[DEBUG][api] getQuiz payload:", JSON.stringify(payload));
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "unknown");
-      console.error("[DEBUG][api] getQuiz HTTP error:", response.status, errText);
-      throw new Error(`Failed to generate quiz (HTTP ${response.status})`);
-    }
-    const json = await response.json();
-    console.debug("[DEBUG][api] getQuiz response:", JSON.stringify(json));
-    return json;
-  },
 
-  getFlashcards: async (videoId: string, language?: string): Promise<LearningResponse> => {
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/learning/flashcards`;
-    const payload = { video_id: videoId, language: language || "auto" };
-    console.debug("[DEBUG][api] getFlashcards payload:", JSON.stringify(payload));
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "unknown");
-      console.error("[DEBUG][api] getFlashcards HTTP error:", response.status, errText);
-      throw new Error(`Failed to generate flashcards (HTTP ${response.status})`);
-    }
-    const json = await response.json();
-    console.debug("[DEBUG][api] getFlashcards response:", JSON.stringify(json));
-    return json;
-  },
 
   getInterviewQuestions: async (videoId: string, language?: string): Promise<LearningResponse> => {
     const baseUrl = getBaseUrl();
@@ -441,5 +403,104 @@ export const learningService = {
   },
 };
 
+export interface ExportPayload {
+  video_title?: string;
+  youtube_url?: string;
+  feature: string;
+  language?: string;
+  content: string;
+  summary_type?: string;
+}
+
+export interface ExportAllPayload {
+  video_title?: string;
+  youtube_url?: string;
+  language?: string;
+  contents: Record<string, string>;
+}
+
+export const exportService = {
+  exportPDF: async (payload: ExportPayload): Promise<void> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/export/pdf`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to generate PDF: ${err}`);
+    }
+    const blob = await response.blob();
+    _triggerFileDownload(blob, _getFilenameFromHeader(response) || `${payload.feature}.pdf`);
+  },
+
+  exportDOCX: async (payload: ExportPayload): Promise<void> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/export/docx`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to generate DOCX: ${err}`);
+    }
+    const blob = await response.blob();
+    _triggerFileDownload(blob, _getFilenameFromHeader(response) || `${payload.feature}.docx`);
+  },
+
+  exportMarkdown: async (payload: ExportPayload): Promise<void> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/export/markdown`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to generate Markdown: ${err}`);
+    }
+    const blob = await response.blob();
+    _triggerFileDownload(blob, _getFilenameFromHeader(response) || `${payload.feature}.md`);
+  },
+
+  exportAllZip: async (payload: ExportAllPayload): Promise<void> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/export/all`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to generate ZIP: ${err}`);
+    }
+    const blob = await response.blob();
+    _triggerFileDownload(blob, _getFilenameFromHeader(response) || "TubeMind_All_Content.zip");
+  },
+};
+
+function _getFilenameFromHeader(response: Response): string | null {
+  const cd = response.headers.get("Content-Disposition");
+  if (cd) {
+    const match = cd.match(/filename="?([^"]+)"?/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function _triggerFileDownload(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export default youtubeService;
+
 

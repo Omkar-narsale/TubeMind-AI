@@ -7,11 +7,171 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useTranscriptStore } from "@/stores/transcriptStore";
 import { useRAGStore } from "@/stores/ragStore";
 import { isYouTubeWatchPage, extractVideoId, seekToTimestamp } from "@/utils/youtube";
-import { formatTimestamp } from "@/utils/format";
-import { youtubeService, VideoMetadata } from "@/services/api";
-import { Settings, Youtube, Send, Radio, User, Bot, AlertTriangle, FileText, Trash2, Sliders, Copy, Check, RotateCcw } from "lucide-react";
+import { youtubeService, exportService, VideoMetadata } from "@/services/api";
+import { Settings, Youtube, Send, Radio, User, Bot, AlertTriangle, FileText, Trash2, Sliders, Copy, Check, RotateCcw, Download, FileCode, Archive, Loader2 } from "lucide-react";
 import { useChatStore } from "@/stores/chatStore";
 import { useLearningStore } from "@/stores/learningStore";
+
+interface ExportButtonsProps {
+  feature: string;
+  content: string;
+  videoTitle?: string;
+  youtubeUrl?: string;
+  language?: string;
+}
+
+function ExportButtonGroup({ feature, content, videoTitle, youtubeUrl, language }: ExportButtonsProps) {
+  const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  if (!content) return null;
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExport = async (format: "pdf" | "docx" | "md") => {
+    if (exporting) return;
+    setExporting(format);
+    try {
+      const payload = {
+        video_title: videoTitle || "YouTube Video",
+        youtube_url: youtubeUrl || "",
+        feature,
+        language: language || "English",
+        content,
+      };
+
+      if (format === "pdf") {
+        await exportService.exportPDF(payload);
+        showToast("PDF downloaded successfully.");
+      } else if (format === "docx") {
+        await exportService.exportDOCX(payload);
+        showToast("DOCX downloaded successfully.");
+      } else if (format === "md") {
+        await exportService.exportMarkdown(payload);
+        showToast("Markdown downloaded successfully.");
+      }
+    } catch (err: any) {
+      showToast(`Export failed: ${err.message || "Unknown error"}`);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {toast && (
+        <span className="text-[10px] text-emerald-400 font-medium animate-in fade-in mr-1">
+          {toast}
+        </span>
+      )}
+      <button
+        onClick={() => handleExport("pdf")}
+        disabled={!!exporting}
+        className="px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-300 text-[10px] font-semibold flex items-center gap-1 border border-slate-800 transition-colors disabled:opacity-50"
+        title="Export PDF"
+      >
+        {exporting === "pdf" ? <Loader2 className="h-3 w-3 animate-spin text-emerald-400" /> : <Download className="h-3 w-3 text-red-400" />}
+        PDF
+      </button>
+      <button
+        onClick={() => handleExport("docx")}
+        disabled={!!exporting}
+        className="px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-300 text-[10px] font-semibold flex items-center gap-1 border border-slate-800 transition-colors disabled:opacity-50"
+        title="Export Word (.docx)"
+      >
+        {exporting === "docx" ? <Loader2 className="h-3 w-3 animate-spin text-emerald-400" /> : <FileText className="h-3 w-3 text-blue-400" />}
+        DOCX
+      </button>
+      <button
+        onClick={() => handleExport("md")}
+        disabled={!!exporting}
+        className="px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-300 text-[10px] font-semibold flex items-center gap-1 border border-slate-800 transition-colors disabled:opacity-50"
+        title="Export Markdown (.md)"
+      >
+        {exporting === "md" ? <Loader2 className="h-3 w-3 animate-spin text-emerald-400" /> : <FileCode className="h-3 w-3 text-emerald-400" />}
+        MD
+      </button>
+      <button
+        onClick={handleCopy}
+        className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
+        title="Copy response"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-emerald-400 animate-in fade-in" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+function ExportAllButton({ videoTitle, youtubeUrl, language }: { videoTitle?: string; youtubeUrl?: string; language?: string }) {
+  const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const { summary, studyNotes, takeaways, interviewQuestions } = useLearningStore();
+
+  const handleExportAll = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const activeVideoId = useVideoStore.getState().currentVideo.videoId || "";
+      const currentSummary = summary[activeVideoId]?.detailed || summary[activeVideoId]?.short || summary[activeVideoId]?.bullet || "";
+      const currentNotes = studyNotes[activeVideoId] || "";
+      const currentTakeaways = (takeaways[activeVideoId] || []).join("\n");
+      const currentInterview = interviewQuestions[activeVideoId] || "";
+
+      const contents: Record<string, string> = {};
+      if (currentSummary) contents["summary"] = currentSummary;
+      if (currentNotes) contents["study_notes"] = currentNotes;
+      if (currentTakeaways) contents["key_takeaways"] = currentTakeaways;
+      if (currentInterview) contents["interview_questions"] = currentInterview;
+
+      if (Object.keys(contents).length === 0) {
+        setToast("No generated content yet.");
+        setTimeout(() => setToast(null), 2500);
+        setExporting(false);
+        return;
+      }
+
+      await exportService.exportAllZip({
+        video_title: videoTitle || "YouTube Video",
+        youtube_url: youtubeUrl || "",
+        language: language || "English",
+        contents,
+      });
+
+      setToast("ZIP downloaded!");
+      setTimeout(() => setToast(null), 2500);
+    } catch (err: any) {
+      setToast(`Export failed: ${err.message || "Unknown error"}`);
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {toast && <span className="text-[9px] text-emerald-400 font-medium animate-in fade-in">{toast}</span>}
+      <button
+        onClick={handleExportAll}
+        disabled={exporting}
+        className="px-2 py-1 rounded bg-emerald-950/70 hover:bg-emerald-900/90 border border-emerald-800/80 text-emerald-300 text-[10px] font-bold flex items-center gap-1 transition-all shadow-sm disabled:opacity-50"
+        title="Export All Content as ZIP"
+      >
+        {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Archive className="h-3 w-3" />}
+        Export All (.zip)
+      </button>
+    </div>
+  );
+}
 
 function parseTimestampToSeconds(ts: string): number {
   const parts = ts.split(":").map(Number);
@@ -195,26 +355,6 @@ function renderInlineText(text: string) {
   return <>{parts.length > 0 ? parts : text}</>;
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950 ml-auto shrink-0 self-start"
-      title="Copy response"
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400 animate-in fade-in" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  );
-}
-
 export function App() {
   const { settings, updateSettings, loadSettings } = useSettingsStore();
   const { status: connectionStatus, checkHealth } = useConnectionStore();
@@ -222,11 +362,6 @@ export function App() {
   
   // Zustand Transcript Store
   const {
-    loading: loadingTranscript,
-    error: transcriptError,
-    segments,
-    language,
-    generated,
     segmentCount,
     fetchTranscript,
     clearTranscript
@@ -261,33 +396,25 @@ export function App() {
   const [showLLMSettings, setShowLLMSettings] = useState(false);
   
   // Learning features state & store
-  const [activeTab, setActiveTab] = useState<"chat" | "summary" | "notes" | "takeaways" | "quiz" | "flashcards" | "interview">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "summary" | "notes" | "takeaways" | "interview">("chat");
   const [summaryType, setSummaryType] = useState<"short" | "detailed" | "bullet">("short");
 
   const {
     summary,
     studyNotes,
     takeaways,
-    quiz,
-    flashcards,
     interviewQuestions,
     loadingSummary,
     loadingNotes,
     loadingTakeaways,
-    loadingQuiz,
-    loadingFlashcards,
     loadingInterview,
     errorSummary,
     errorNotes,
     errorTakeaways,
-    errorQuiz,
-    errorFlashcards,
     errorInterview,
     generateSummary,
     generateStudyNotes,
     generateTakeaways,
-    generateQuiz,
-    generateFlashcards,
     generateInterviewQuestions,
   } = useLearningStore();
 
@@ -310,10 +437,6 @@ export function App() {
         generateStudyNotes(currentVideo.videoId);
       } else if (activeTab === "takeaways") {
         generateTakeaways(currentVideo.videoId);
-      } else if (activeTab === "quiz") {
-        generateQuiz(currentVideo.videoId);
-      } else if (activeTab === "flashcards") {
-        generateFlashcards(currentVideo.videoId);
       } else if (activeTab === "interview") {
         generateInterviewQuestions(currentVideo.videoId);
       }
@@ -444,9 +567,6 @@ export function App() {
     }
   };
 
-  // Slice first 15 segments for preview
-  const previewSegments = segments.slice(0, 15);
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans max-h-screen select-none">
       
@@ -511,46 +631,56 @@ export function App() {
       </header>
 
       {/* Response Language Selector Bar */}
-      <div className="px-4 py-2 border-b border-slate-900 bg-slate-900/40 flex items-center justify-between gap-2 shrink-0">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
-          🌐 Response Language
-        </span>
-        <select
-          value={settings.responseLanguage || "auto"}
-          onChange={(e) => {
-            const newLang = e.target.value;
-            console.debug("[DEBUG][App] Language changed to:", newLang);
-            updateSettings({ responseLanguage: newLang });
-            if (currentVideo.videoId) {
-              if (activeTab === "summary") {
-                generateSummary(currentVideo.videoId, summaryType, true);
-              } else if (activeTab === "notes") {
-                generateStudyNotes(currentVideo.videoId, true);
-              } else if (activeTab === "takeaways") {
-                generateTakeaways(currentVideo.videoId, true);
-              } else if (activeTab === "interview") {
-                generateInterviewQuestions(currentVideo.videoId, true);
+      <div className="px-4 py-2 border-b border-slate-900 bg-slate-900/40 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+            🌐 Language
+          </span>
+          <select
+            value={settings.responseLanguage || "auto"}
+            onChange={(e) => {
+              const newLang = e.target.value;
+              console.debug("[DEBUG][App] Language changed to:", newLang);
+              updateSettings({ responseLanguage: newLang });
+              if (currentVideo.videoId) {
+                if (activeTab === "summary") {
+                  generateSummary(currentVideo.videoId, summaryType, true);
+                } else if (activeTab === "notes") {
+                  generateStudyNotes(currentVideo.videoId, true);
+                } else if (activeTab === "takeaways") {
+                  generateTakeaways(currentVideo.videoId, true);
+                } else if (activeTab === "interview") {
+                  generateInterviewQuestions(currentVideo.videoId, true);
+                }
               }
-            }
-          }}
-          className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary text-slate-200"
-        >
-          <option value="auto">Auto (Default)</option>
-          <option value="en">English</option>
-          <option value="hi">Hindi</option>
-          <option value="mr">Marathi</option>
-          <option value="ta">Tamil</option>
-          <option value="te">Telugu</option>
-          <option value="kn">Kannada</option>
-          <option value="gu">Gujarati</option>
-          <option value="pa">Punjabi</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="ja">Japanese</option>
-          <option value="ko">Korean</option>
-          <option value="zh">Chinese</option>
-        </select>
+            }}
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary text-slate-200"
+          >
+            <option value="auto">Auto (Default)</option>
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="mr">Marathi</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="kn">Kannada</option>
+            <option value="gu">Gujarati</option>
+            <option value="pa">Punjabi</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="zh">Chinese</option>
+          </select>
+        </div>
+
+        {currentVideo.videoId && (
+          <ExportAllButton
+            videoTitle={metadata?.title || currentVideo.title || "YouTube Video"}
+            youtubeUrl={currentVideo.url}
+            language={settings.responseLanguage || "English"}
+          />
+        )}
       </div>
 
       {/* LLM Configuration Panel */}
@@ -660,188 +790,84 @@ export function App() {
                     <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-slate-950 text-[10px] text-slate-400">
                       <div className="space-y-0.5">
                         <span className="text-slate-500 block">Transcript Status</span>
-                        {loadingTranscript ? (
-                          <span className="text-primary animate-pulse font-bold">Loading...</span>
-                        ) : transcriptError ? (
-                          <span className="text-red-500 font-bold">Transcript Unavailable</span>
-                        ) : (
-                          <span className="text-emerald-400 font-bold">Transcript Loaded</span>
-                        )}
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-slate-500 block">Language</span>
-                        <span className="font-semibold text-slate-200 uppercase">
-                          {loadingTranscript ? "..." : (language || "N/A")}
+                        <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Available ({segmentCount} segments)
                         </span>
                       </div>
                       <div className="space-y-0.5">
-                        <span className="text-slate-500 block">Caption Type</span>
-                        <span className="font-semibold text-slate-200">
-                          {loadingTranscript ? "..." : (segmentCount === 0 ? "N/A" : (generated ? "Auto-Generated" : "Official"))}
-                        </span>
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className="text-slate-500 block">Segment Count</span>
-                        <span className="font-semibold text-slate-200">
-                          {loadingTranscript ? "..." : segmentCount}
-                        </span>
+                        <span className="text-slate-500 block">Video ID</span>
+                        <span className="font-mono text-slate-300 truncate block">{currentVideo.videoId}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Transcript Preview Section (Only show if no chat messages yet) */}
-                  {currentVideoMessages.length === 0 && (
-                    <div className="bg-slate-900/40 border border-slate-900 rounded-2xl flex flex-col min-h-[220px]">
-                      <div className="p-3 border-b border-slate-950 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        <span className="text-[10px] uppercase font-extrabold text-slate-300">Transcript Preview (First 15)</span>
-                      </div>
-                      
-                      <div className="p-3 flex-1 overflow-y-auto max-h-[250px] space-y-3">
-                        {loadingTranscript ? (
-                          <div className="h-full flex items-center justify-center py-10">
-                            <Loading variant="spinner" message="Analyzing YouTube track..." />
-                          </div>
-                        ) : transcriptError ? (
-                          <div className="text-center py-10 space-y-2">
-                            <AlertTriangle className="h-7 w-7 text-amber-500 mx-auto" />
-                            <p className="text-[11px] text-slate-400">{transcriptError}</p>
-                          </div>
-                        ) : previewSegments.length > 0 ? (
-                          <div className="space-y-3">
-                            {previewSegments.map((segment, index) => (
-                              <div
-                                key={index}
-                                className="group flex gap-3 text-xs p-2 rounded-xl hover:bg-slate-900/60 transition-colors"
-                              >
-                                <span className="text-primary font-mono font-bold select-none shrink-0 w-10">
-                                  {formatTimestamp(segment.start)}
-                                </span>
-                                <p className="text-slate-300 leading-relaxed group-hover:text-white transition-colors">
-                                  {segment.text}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-slate-500 text-center py-10">No transcript segments available.</p>
-                        )}
-                      </div>
+                  {/* Chat Messages */}
+                  {currentVideoMessages.length === 0 ? (
+                    <div className="text-center py-8 space-y-2">
+                      <Bot className="h-8 w-8 text-slate-700 mx-auto" />
+                      <p className="text-xs text-slate-400 font-medium">Ask questions about this video</p>
+                      <p className="text-[10px] text-slate-500 max-w-[200px] mx-auto">
+                        I can summarize concepts, clarify technical details, or answer specific questions.
+                      </p>
                     </div>
-                  )}
-
-                  {/* Chat Board Area */}
-                  {currentVideoMessages.length > 0 && (
-                    <div className="space-y-6">
-                      {currentVideoMessages.map((msg, idx) => {
-                        const isLast = idx === currentVideoMessages.length - 1;
-                        return (
+                  ) : (
+                    <div className="space-y-3">
+                      {currentVideoMessages.map((msg, index) => (
+                        <div
+                          key={index}
+                          className={`flex gap-2.5 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          {msg.sender === "assistant" && (
+                            <div className="h-6 w-6 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
+                              <Bot className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                          )}
+                          
                           <div
-                            key={msg.id}
-                            className={`flex gap-3 items-start transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${
-                              msg.sender === "user" ? "flex-row-reverse" : ""
+                            className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                              msg.sender === "user"
+                                ? "bg-primary text-white font-medium rounded-tr-sm"
+                                : "bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-sm shadow-sm"
                             }`}
                           >
-                            <div className={`h-8 w-8 rounded-full shrink-0 flex items-center justify-center text-white border shadow-sm transition-transform hover:scale-105 ${
-                              msg.sender === "user" 
-                                ? "bg-blue-600/10 border-blue-500/30 text-blue-400" 
-                                : "bg-slate-900 border-slate-800 text-primary"
-                            }`}>
-                              {msg.sender === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                            </div>
-                            
-                            {msg.sender === "user" ? (
-                              <div className="flex flex-col items-end gap-1.5 max-w-[80%]">
-                                <div className="p-3.5 rounded-2xl text-xs leading-relaxed bg-blue-600 text-white rounded-tr-none shadow-md border border-blue-500/20">
-                                  <p className="whitespace-pre-wrap">{msg.text}</p>
-                                </div>
-                                <span className="text-[9px] text-slate-500 font-mono px-1">
-                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                            ) : (
-                              /* Assistant response area (AI Response with Markdown support) */
-                              <div className="flex flex-col gap-1.5 max-w-[80%] w-full">
-                                <div className="p-3.5 rounded-2xl text-xs leading-relaxed bg-slate-900 border border-slate-800/80 rounded-tl-none text-slate-100 w-full space-y-3 relative group/msg shadow-sm hover:shadow-md transition-shadow">
-                                  <div className="flex justify-between items-start gap-2">
-                                    <div className="flex-1 min-w-0">
-                                      <MarkdownRenderer content={msg.text} />
-                                      {chatStreaming && isLast && (
-                                        <span className="inline-block w-1.5 h-3 bg-primary ml-1 animate-pulse" />
-                                      )}
-                                    </div>
-                                    <CopyButton text={msg.text} />
-                                  </div>
-                                  
-                                  {/* Metadata and Citations details */}
-                                  {msg.context && msg.context.length > 0 && (
-                                    <div className="pt-2.5 border-t border-slate-800/80 space-y-2">
-                                      <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Source Citations</span>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {msg.context.map((cite) => (
-                                          <button
-                                            key={cite.chunk_index}
-                                            onClick={() => seekToTimestamp(cite.start)}
-                                            className="text-[9px] px-2 py-0.5 rounded-md bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800/60 font-mono transition-all hover:scale-105 active:scale-95"
-                                            title={cite.text}
-                                          >
-                                            [{cite.chunk_index}] {formatTimestamp(cite.start)}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
+                            <MarkdownRenderer content={msg.text} />
+                          </div>
 
-                                  {msg.metadata && (
-                                    <div className="pt-2 text-[9px] text-slate-500 flex justify-between font-mono border-t border-slate-800/40">
-                                      <span>Model: {msg.metadata.model_name}</span>
-                                      <span>Time: {msg.metadata.response_time}s</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <span className="text-[9px] text-slate-500 font-mono px-1">
-                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      
-                      {/* Streaming/Loading Indicator */}
-                      {chatLoading && (
-                        <div className="flex gap-3 animate-pulse">
-                          <div className="h-8 w-8 rounded-full bg-slate-900 border border-slate-800 shrink-0 flex items-center justify-center text-primary">
-                            <Bot className="h-4 w-4" />
-                          </div>
-                          <div className="bg-slate-900 border border-slate-800/80 rounded-2xl rounded-tl-none p-3.5 max-w-[80%] w-full shadow-sm">
-                            <div className="flex space-x-2 items-center justify-start py-1">
-                              <div className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                              <div className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                              <div className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce"></div>
-                              <span className="text-[10px] text-slate-400 ml-1.5 font-medium">Tutor is searching & thinking...</span>
+                          {msg.sender === "user" && (
+                            <div className="h-6 w-6 rounded-full bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                              <User className="h-3.5 w-3.5 text-slate-400" />
                             </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {chatLoading && (
+                        <div className="flex gap-2.5 justify-start">
+                          <div className="h-6 w-6 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+                            <Bot className="h-3.5 w-3.5 text-primary animate-spin" />
+                          </div>
+                          <div className="bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-slate-400 flex items-center gap-2">
+                            <Loading variant="spinner" message="Thinking..." />
                           </div>
                         </div>
                       )}
 
                       {chatError && (
-                        <div className="space-y-2 max-w-[80%] mx-auto py-2 animate-in fade-in zoom-in-95">
-                          <div className="p-3.5 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center">
+                        <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center justify-between">
+                          <div className="flex items-center gap-2">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             <span>{chatError}</span>
                           </div>
-                          <div className="flex justify-center">
-                            <Button
-                              onClick={() => currentVideo.videoId && retryMessage(currentVideo.videoId)}
-                              variant="outline"
-                              size="sm"
-                              className="text-[10px] h-8 border-slate-800 hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-1.5 rounded-lg shadow-sm transition-transform active:scale-95"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              Retry Last Query
-                            </Button>
-                          </div>
+                          <Button
+                            onClick={() => currentVideo.videoId && retryMessage(currentVideo.videoId)}
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-950/50 h-7 text-[10px] gap-1 px-2"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Retry
+                          </Button>
                         </div>
                       )}
 
@@ -852,8 +878,7 @@ export function App() {
               )}
 
               {activeTab === "summary" && activeVideoId && (() => {
-                const summaryData = summary[activeVideoId]?.[summaryType];
-                console.debug("[DEBUG][App] Rendering summary tab:", { activeVideoId, summaryType, hasData: !!summaryData, dataLength: summaryData?.length, loadingSummary, errorSummary });
+                const summaryData = summary[activeVideoId]?.[summaryType] || "";
                 return (
                 <div className="space-y-4 animate-in fade-in duration-200">
                   <div className="flex gap-2">
@@ -874,19 +899,19 @@ export function App() {
                   </div>
 
                   <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 space-y-3 shadow-sm relative group">
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2 flex-wrap gap-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         {summaryType} Summary
                       </span>
-                      {summary[activeVideoId]?.[summaryType] && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => navigator.clipboard.writeText(summary[activeVideoId]?.[summaryType] || "")}
-                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                            title="Copy Summary"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
+                      {summaryData && (
+                        <div className="flex items-center gap-2">
+                          <ExportButtonGroup
+                            feature={`summary_${summaryType}`}
+                            content={summaryData}
+                            videoTitle={metadata?.title || currentVideo.title || ""}
+                            youtubeUrl={currentVideo.url}
+                            language={settings.responseLanguage || "English"}
+                          />
                           <button
                             onClick={() => generateSummary(activeVideoId, summaryType, true)}
                             className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
@@ -911,7 +936,7 @@ export function App() {
                       </div>
                     ) : (
                       <div className="text-xs leading-relaxed text-slate-200">
-                        <MarkdownRenderer content={summary[activeVideoId]?.[summaryType] || "No summary generated."} />
+                        <MarkdownRenderer content={summaryData || "No summary generated."} />
                       </div>
                     )}
                   </div>
@@ -919,22 +944,24 @@ export function App() {
                 );
               })()}
 
-              {activeTab === "notes" && activeVideoId && (
+              {activeTab === "notes" && activeVideoId && (() => {
+                const notesData = studyNotes[activeVideoId] || "";
+                return (
                 <div className="space-y-4 animate-in fade-in duration-200">
                   <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 space-y-3 shadow-sm relative group">
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2 flex-wrap gap-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         Study Notes
                       </span>
-                      {studyNotes[activeVideoId] && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => navigator.clipboard.writeText(studyNotes[activeVideoId] || "")}
-                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                            title="Copy Notes"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
+                      {notesData && (
+                        <div className="flex items-center gap-2">
+                          <ExportButtonGroup
+                            feature="study_notes"
+                            content={notesData}
+                            videoTitle={metadata?.title || currentVideo.title || ""}
+                            youtubeUrl={currentVideo.url}
+                            language={settings.responseLanguage || "English"}
+                          />
                           <button
                             onClick={() => generateStudyNotes(activeVideoId, true)}
                             className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
@@ -960,31 +987,32 @@ export function App() {
                       </div>
                     ) : (
                       <div className="text-xs leading-relaxed text-slate-200 prose prose-invert max-w-none">
-                        <MarkdownRenderer content={studyNotes[activeVideoId] || "No study notes generated."} />
+                        <MarkdownRenderer content={notesData || "No study notes generated."} />
                       </div>
                     )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
-              {activeTab === "takeaways" && activeVideoId && (
+              {activeTab === "takeaways" && activeVideoId && (() => {
+                const points = takeaways[activeVideoId] || [];
+                const takeawaysText = points.map((p) => `✓ ${p}`).join("\n");
+                return (
                 <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="flex justify-between items-center px-1">
+                  <div className="flex justify-between items-center px-1 flex-wrap gap-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Key Takeaways ({takeaways[activeVideoId]?.length || 0})
+                      Key Takeaways ({points.length})
                     </span>
-                    {takeaways[activeVideoId] && (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            const text = takeaways[activeVideoId]?.map((t: string) => `✓ ${t}`).join("\n");
-                            navigator.clipboard.writeText(text || "");
-                          }}
-                          className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                          title="Copy Takeaways"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
+                    {takeawaysText && (
+                      <div className="flex items-center gap-2">
+                        <ExportButtonGroup
+                          feature="key_takeaways"
+                          content={takeawaysText}
+                          videoTitle={metadata?.title || currentVideo.title || ""}
+                          youtubeUrl={currentVideo.url}
+                          language={settings.responseLanguage || "English"}
+                        />
                         <button
                           onClick={() => generateTakeaways(activeVideoId, true)}
                           className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
@@ -1007,9 +1035,9 @@ export function App() {
                       <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>{errorTakeaways}</span>
                     </div>
-                  ) : takeaways[activeVideoId]?.length > 0 ? (
+                  ) : points.length > 0 ? (
                     <div className="space-y-3">
-                      {takeaways[activeVideoId].map((point, index) => (
+                      {points.map((point, index) => (
                         <div
                           key={index}
                           className="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5 flex gap-3 items-start shadow-sm hover:shadow-md transition-shadow animate-in slide-in-from-bottom-2 duration-300"
@@ -1025,115 +1053,27 @@ export function App() {
                     <p className="text-[11px] text-slate-500 text-center py-10">No takeaways generated.</p>
                   )}
                 </div>
-              )}
+                );
+              })()}
 
-              {activeTab === "quiz" && activeVideoId && (
+              {activeTab === "interview" && activeVideoId && (() => {
+                const interviewText = interviewQuestions[activeVideoId] || "";
+                const parsedQ = parseInterviewQuestions(interviewText);
+                return (
                 <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 space-y-3 shadow-sm relative group">
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Practice Quiz
-                      </span>
-                      {quiz[activeVideoId] && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => navigator.clipboard.writeText(quiz[activeVideoId] || "")}
-                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                            title="Copy Quiz"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => generateQuiz(activeVideoId, true)}
-                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                            title="Regenerate Quiz"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {loadingQuiz ? (
-                      <div className="space-y-3 py-4 animate-pulse">
-                        <div className="h-3.5 bg-slate-800 rounded w-3/4 animate-bounce"></div>
-                        <div className="h-3.5 bg-slate-800 rounded w-full"></div>
-                      </div>
-                    ) : errorQuiz ? (
-                      <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>{errorQuiz}</span>
-                      </div>
-                    ) : (
-                      <div className="text-xs leading-relaxed text-slate-200">
-                        <MarkdownRenderer content={quiz[activeVideoId] || "No quiz generated."} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "flashcards" && activeVideoId && (
-                <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 space-y-3 shadow-sm relative group">
-                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Flashcards
-                      </span>
-                      {flashcards[activeVideoId] && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => navigator.clipboard.writeText(flashcards[activeVideoId] || "")}
-                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                            title="Copy Flashcards"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => generateFlashcards(activeVideoId, true)}
-                            className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                            title="Regenerate Flashcards"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {loadingFlashcards ? (
-                      <div className="space-y-3 py-4 animate-pulse">
-                        <div className="h-3.5 bg-slate-800 rounded w-3/4 animate-bounce"></div>
-                        <div className="h-3.5 bg-slate-800 rounded w-full"></div>
-                      </div>
-                    ) : errorFlashcards ? (
-                      <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/50 text-red-400 text-xs flex gap-2.5 items-center">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>{errorFlashcards}</span>
-                      </div>
-                    ) : (
-                      <div className="text-xs leading-relaxed text-slate-200">
-                        <MarkdownRenderer content={flashcards[activeVideoId] || "No flashcards generated."} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "interview" && activeVideoId && (
-                <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="flex justify-between items-center px-1">
+                  <div className="flex justify-between items-center px-1 flex-wrap gap-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Interview Questions ({parseInterviewQuestions(interviewQuestions[activeVideoId] || "").length || 0})
+                      Interview Questions ({parsedQ.length})
                     </span>
-                    {interviewQuestions[activeVideoId] && (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => navigator.clipboard.writeText(interviewQuestions[activeVideoId] || "")}
-                          className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
-                          title="Copy Interview Questions"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
+                    {interviewText && (
+                      <div className="flex items-center gap-2">
+                        <ExportButtonGroup
+                          feature="interview_questions"
+                          content={interviewText}
+                          videoTitle={metadata?.title || currentVideo.title || ""}
+                          youtubeUrl={currentVideo.url}
+                          language={settings.responseLanguage || "English"}
+                        />
                         <button
                           onClick={() => generateInterviewQuestions(activeVideoId, true)}
                           className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-950"
@@ -1156,9 +1096,9 @@ export function App() {
                       <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>{errorInterview}</span>
                     </div>
-                  ) : parseInterviewQuestions(interviewQuestions[activeVideoId] || "").length > 0 ? (
+                  ) : parsedQ.length > 0 ? (
                     <div className="space-y-4">
-                      {parseInterviewQuestions(interviewQuestions[activeVideoId] || "").map((item, index) => {
+                      {parsedQ.map((item, index) => {
                         const difficultyColor = 
                           item.difficulty.toLowerCase() === "easy" 
                             ? "text-emerald-400 bg-emerald-950/30 border-emerald-900/50" 
@@ -1197,7 +1137,8 @@ export function App() {
                     <p className="text-[11px] text-slate-500 text-center py-10">No interview questions generated.</p>
                   )}
                 </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Input Message Box */}

@@ -28,29 +28,21 @@ interface LearningState {
   summary: Record<string, { short?: string; detailed?: string; bullet?: string }>;
   studyNotes: Record<string, string>;
   takeaways: Record<string, string[]>;
-  quiz: Record<string, string>;
-  flashcards: Record<string, string>;
   interviewQuestions: Record<string, string>;
   
   loadingSummary: boolean;
   loadingNotes: boolean;
   loadingTakeaways: boolean;
-  loadingQuiz: boolean;
-  loadingFlashcards: boolean;
   loadingInterview: boolean;
   
   errorSummary: string | null;
   errorNotes: string | null;
   errorTakeaways: string | null;
-  errorQuiz: string | null;
-  errorFlashcards: string | null;
   errorInterview: string | null;
 
   generateSummary: (videoId: string, type: "short" | "detailed" | "bullet", force?: boolean) => Promise<void>;
   generateStudyNotes: (videoId: string, force?: boolean) => Promise<void>;
   generateTakeaways: (videoId: string, force?: boolean) => Promise<void>;
-  generateQuiz: (videoId: string, force?: boolean) => Promise<void>;
-  generateFlashcards: (videoId: string, force?: boolean) => Promise<void>;
   generateInterviewQuestions: (videoId: string, force?: boolean) => Promise<void>;
 }
 
@@ -58,22 +50,16 @@ export const useLearningStore = create<LearningState>((set, get) => ({
   summary: {},
   studyNotes: {},
   takeaways: {},
-  quiz: {},
-  flashcards: {},
   interviewQuestions: {},
   
   loadingSummary: false,
   loadingNotes: false,
   loadingTakeaways: false,
-  loadingQuiz: false,
-  loadingFlashcards: false,
   loadingInterview: false,
   
   errorSummary: null,
   errorNotes: null,
   errorTakeaways: null,
-  errorQuiz: null,
-  errorFlashcards: null,
   errorInterview: null,
 
   generateSummary: async (videoId: string, type: "short" | "detailed" | "bullet", force = false) => {
@@ -200,64 +186,6 @@ export const useLearningStore = create<LearningState>((set, get) => ({
     } catch (err: any) {
       logger.error("Failed to generate key takeaways:", err);
       set({ loadingTakeaways: false, errorTakeaways: err.message || "Failed to generate key takeaways" });
-    } finally {
-      inFlight.delete(flightKey);
-    }
-  },
-
-  generateQuiz: async (videoId: string, force = false) => {
-    if (!videoId) return;
-    
-    const existing = get().quiz[videoId];
-    if (existing && !force) return;
-
-    const flightKey = `quiz:${videoId}`;
-    if (inFlight.has(flightKey)) return;
-    inFlight.add(flightKey);
-
-    set({ loadingQuiz: true, errorQuiz: null });
-    try {
-      const lang = resolveLanguage();
-      const response = await learningService.getQuiz(videoId, lang);
-      set((state) => ({
-        quiz: {
-          ...state.quiz,
-          [videoId]: response.data,
-        },
-        loadingQuiz: false,
-      }));
-    } catch (err: any) {
-      logger.error("Failed to generate quiz:", err);
-      set({ loadingQuiz: false, errorQuiz: err.message || "Failed to generate quiz" });
-    } finally {
-      inFlight.delete(flightKey);
-    }
-  },
-
-  generateFlashcards: async (videoId: string, force = false) => {
-    if (!videoId) return;
-    
-    const existing = get().flashcards[videoId];
-    if (existing && !force) return;
-
-    const flightKey = `flashcards:${videoId}`;
-    if (inFlight.has(flightKey)) return;
-    inFlight.add(flightKey);
-
-    set({ loadingFlashcards: true, errorFlashcards: null });
-    try {
-      const lang = resolveLanguage();
-      const response = await learningService.getFlashcards(videoId, lang);
-      set((state) => ({
-        flashcards: {
-          ...state.flashcards,
-          [videoId]: response.data,
-        },
-        loadingFlashcards: false,
-      }));
-    } catch (err: any) {
-      logger.error("Failed to generate flashcards:", err);
-      set({ loadingFlashcards: false, errorFlashcards: err.message || "Failed to generate flashcards" });
     } finally {
       inFlight.delete(flightKey);
     }

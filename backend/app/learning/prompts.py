@@ -6,35 +6,18 @@ from app.llm.prompts import (
     KEY_TAKEAWAYS_PROMPT,
 )
 
-QUIZ_PROMPT = (
-    "Generate a multiple-choice quiz of 3-5 questions based on the following context.\n"
-    "Format precisely as:\n"
-    "Q1: [Question]\n"
-    "A) [Option A]\n"
-    "B) [Option B]\n"
-    "C) [Option C]\n"
-    "D) [Option D]\n"
-    "Correct: [A/B/C/D]\n\n"
-    "Context:\n{context}\n\n"
-    "Quiz:"
-)
-
-FLASHCARDS_PROMPT = (
-    "Generate 3-5 flashcards based on the following context.\n"
-    "Format precisely as:\n"
-    "Card [Num] Front: [Question]\n"
-    "Card [Num] Back: [Answer]\n\n"
-    "Context:\n{context}\n\n"
-    "Flashcards:"
-)
-
 INTERVIEW_PROMPT = (
-    "Generate 3-5 technical interview questions and answers based on the following context.\n"
-    "For each question, specify a difficulty level of either Easy, Medium, or Hard.\n"
+    "Generate 3-5 technical interview questions and answers strictly and ONLY based on the provided video summary context below.\n"
+    "CRITICAL RULES:\n"
+    "1. Do NOT use general AI knowledge, textbook definitions, or external information.\n"
+    "2. All questions and answers must directly relate to concepts explained in the video summary.\n"
+    "3. If the video summary does not provide enough technical depth for a question, explicitly state 'The video does not provide sufficient details for technical interview questions.' instead of inventing questions.\n"
+    "For each question, specify a difficulty level of either Easy, Medium, or Hard.\n\n"
     "Format precisely as:\n"
     "Q: [Question]\n"
     "A: [Answer]\n"
     "Difficulty: [Easy/Medium/Hard]\n\n"
-    "Context:\n{context}\n\n"
+    "Video Summary Context:\n{context}\n\n"
     "Interview Questions:"
 )
+

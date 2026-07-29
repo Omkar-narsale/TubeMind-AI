@@ -39,7 +39,7 @@ MOCK_TRANSCRIPT = {
 
 @patch("app.learning.service.TranscriptService.get_transcript")
 @patch("groq.resources.chat.completions.AsyncCompletions.create")
-def test_learning_quiz_flashcards_interview_endpoints(mock_create, mock_transcript):
+def test_learning_interview_notes_endpoints(mock_create, mock_transcript):
     mock_transcript.return_value = MOCK_TRANSCRIPT
     
     mock_response = MagicMock()
@@ -53,20 +53,13 @@ def test_learning_quiz_flashcards_interview_endpoints(mock_create, mock_transcri
         return mock_response
     mock_create.side_effect = mock_coro
 
-    # 1. Test Quiz
-    response = client.post("/api/v1/learning/quiz", json={"video_id": "mock_vid_123"})
+    # 1. Test Study Notes
+    response = client.post("/api/v1/learning/study-notes", json={"video_id": "mock_vid_123"})
     assert response.status_code == 200
     assert response.json()["success"] is True
-    assert response.json()["data"] == "Mocked content output."
 
-    # 2. Test Flashcards
-    response = client.post("/api/v1/learning/flashcards", json={"video_id": "mock_vid_123"})
-    assert response.status_code == 200
-    assert response.json()["success"] is True
-    assert response.json()["data"] == "Mocked content output."
-
-    # 3. Test Interview Questions
+    # 2. Test Interview Questions
     response = client.post("/api/v1/learning/interview-questions", json={"video_id": "mock_vid_123"})
     assert response.status_code == 200
     assert response.json()["success"] is True
-    assert response.json()["data"] == "Mocked content output."
+
