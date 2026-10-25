@@ -38,16 +38,28 @@ class Settings(BaseSettings):
     # Optional third-party integrations
     YOUTUBE_API_KEY: str = ""
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
 
     # Routing Models
-    CHAT_MODEL: str = "llama-3.1-8b-instant"
-    SUMMARY_MODEL: str = "llama-3.3-70b-versatile"
-    NOTES_MODEL: str = "llama-3.1-8b-instant"
-    TAKEAWAYS_MODEL: str = "llama-3.1-8b-instant"
-    QUIZ_MODEL: str = "llama-3.1-8b-instant"
-    FLASHCARD_MODEL: str = "llama-3.1-8b-instant"
-    INTERVIEW_MODEL: str = "llama-3.1-8b-instant"
+    CHAT_MODEL: str = "openai/gpt-oss-20b"
+    SUMMARY_MODEL: str = "openai/gpt-oss-120b"
+    NOTES_MODEL: str = "openai/gpt-oss-20b"
+    TAKEAWAYS_MODEL: str = "openai/gpt-oss-20b"
+    QUIZ_MODEL: str = "openai/gpt-oss-20b"
+    FLASHCARD_MODEL: str = "openai/gpt-oss-20b"
+    INTERVIEW_MODEL: str = "openai/gpt-oss-20b"
+
+    # Whisper Speech-to-Text Fallback
+    ENABLE_WHISPER_FALLBACK: bool = True
+    WHISPER_MODEL: str = "whisper-large-v3-turbo"
+    WHISPER_MAX_FILE_SIZE_MB: int = 25
+    WHISPER_MAX_DURATION_MINUTES: int = 120
+
+    # Second Brain Integration (Notion & Obsidian)
+    NOTION_API_KEY: str = ""
+    NOTION_DATABASE_ID: str = ""
+    NOTION_PAGE_ID: str = ""
+    OBSIDIAN_VAULT_NAME: str = ""
 
     # Optimization settings
     CACHE_TTL_SECONDS: int = 1800

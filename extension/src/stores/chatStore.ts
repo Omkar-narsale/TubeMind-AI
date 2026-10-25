@@ -27,7 +27,7 @@ interface ChatState {
   streamingEnabled: boolean;
   error: string | null;
   
-  sendMessage: (videoId: string, query: string) => Promise<void>;
+  sendMessage: (videoId: string, query: string, timestamp_seconds?: number) => Promise<void>;
   retryMessage: (videoId: string) => Promise<void>;
   clearChat: (videoId: string) => void;
   setTemperature: (temp: number) => void;
@@ -44,7 +44,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   streamingEnabled: true,
   error: null,
 
-  sendMessage: async (videoId: string, query: string) => {
+  sendMessage: async (videoId: string, query: string, timestamp_seconds?: number) => {
     if (!videoId || !query.trim()) return;
 
     const userMessage: ChatMessage = {
@@ -108,6 +108,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             temperature,
             max_tokens: maxTokens,
             language: lang,
+            timestamp_seconds,
           },
           (context) => {
             // Update the message citations
@@ -207,6 +208,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           max_tokens: maxTokens,
           stream: false,
           language: lang,
+          timestamp_seconds,
         });
 
         const aiMessage: ChatMessage = {

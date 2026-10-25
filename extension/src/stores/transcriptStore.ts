@@ -8,6 +8,7 @@ interface TranscriptState {
   segments: TranscriptSegment[];
   language: string;
   generated: boolean;
+  source?: string;
   segmentCount: number;
   fetchTranscript: (videoId: string) => Promise<void>;
   clearTranscript: () => void;
@@ -19,6 +20,7 @@ export const useTranscriptStore = create<TranscriptState>((set) => ({
   segments: [],
   language: "",
   generated: false,
+  source: undefined,
   segmentCount: 0,
 
   fetchTranscript: async (videoId: string) => {
@@ -34,6 +36,7 @@ export const useTranscriptStore = create<TranscriptState>((set) => ({
         segments: data.segments,
         language: data.language,
         generated: data.generated,
+        source: data.source,
         segmentCount: data.segments.length,
         loading: false,
         error: null,
@@ -59,6 +62,7 @@ export const useTranscriptStore = create<TranscriptState>((set) => ({
       segments: [],
       language: "",
       generated: false,
+      source: undefined,
       segmentCount: 0,
     });
   },

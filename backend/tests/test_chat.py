@@ -101,3 +101,52 @@ def test_prompt_builder_factual():
     assert messages[2]["content"] == query
 
 
+@patch("app.core.config.settings.GROQ_API_KEY", "mock_key")
+@patch("app.llm.service.LLMChatService.validate_groundedness")
+@patch("app.llm.service.RAGService.search_transcript")
+@patch("app.transcript.service.TranscriptService.get_transcript")
+@patch("groq.resources.chat.completions.AsyncCompletions.create")
+def test_chat_ask_about_this_moment(mock_create, mock_get_t, mock_search, mock_val):
+    mock_search.return_value = MOCK_CHUNKS
+    mock_get_t.return_value = {
+        "success": True,
+        "video_id": "mock_vid_123",
+        "language": "en",
+        "segments": [
+            {"text": "Right here we define the loss function.", "start": 120.0, "duration": 5.0},
+            {"text": "Then we call optimizer.step()", "start": 126.0, "duration": 4.0}
+        ]
+    }
+    async def mock_val_coro(*args, **kwargs):
+        return True
+    mock_val.side_effect = mock_val_coro
+    
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_message = MagicMock()
+    mock_message.content = "At [02:00], the instructor defines the loss function."
+    mock_choice.message = mock_message
+    mock_response.choices = [mock_choice]
+    
+    async def mock_coro(*args, **kwargs):
+        return mock_response
+    mock_create.side_effect = mock_coro
+    
+    payload = {
+        "video_id": "mock_vid_123",
+        "query": "What did he just code?",
+        "history": [],
+        "stream": False,
+        "timestamp_seconds": 122.0,
+        "window_seconds": 30.0
+    }
+    
+    response = client.post("/api/v1/chat", json=payload)
+    assert response.status_code == 200
+    json_data = response.json()
+    assert json_data["success"] is True
+    first_context = json_data["data"]["context"][0]
+    assert "CURRENT SCENE MOMENT" in first_context["text"]
+    assert first_context["start"] == 120.0
+
+

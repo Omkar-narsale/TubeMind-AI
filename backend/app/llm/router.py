@@ -14,6 +14,7 @@ def get_routed_model(task_type: str) -> str:
         "takeaways": settings.TAKEAWAYS_MODEL,
         "quiz": settings.QUIZ_MODEL,
         "flashcard": settings.FLASHCARD_MODEL,
+        "flashcards": settings.FLASHCARD_MODEL,
         "interview": settings.INTERVIEW_MODEL,
     }
     return mapping.get(task_type, settings.GROQ_MODEL)

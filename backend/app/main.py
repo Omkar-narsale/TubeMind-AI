@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.endpoints import health, youtube, transcript, rag, chat
 from app.learning import router as learning_router
 from app.export import router as export_router
+from app.playlist import router as playlist_router
 from app.core.config import settings
 from app.schemas.common import ErrorDetail, ErrorResponse
 from app.llm.exceptions import GroqAPIException
@@ -119,3 +120,5 @@ app.include_router(rag.router, prefix=f"{settings.API_V1_STR}/rag", tags=["RAG"]
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["Chat"])
 app.include_router(learning_router.router, prefix=f"{settings.API_V1_STR}", tags=["Learning"])
 app.include_router(export_router.router, prefix=f"{settings.API_V1_STR}", tags=["Export"])
+app.include_router(playlist_router.router, prefix=f"{settings.API_V1_STR}", tags=["Playlist"])
+

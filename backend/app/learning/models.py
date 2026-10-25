@@ -35,6 +35,14 @@ class InterviewRequest(BaseLearningRequest):
     pass
 
 
+class FlashcardRequest(BaseLearningRequest):
+    pass
+
+
+class QuizRequest(BaseLearningRequest):
+    pass
+
+
 class LearningResponse(BaseModel):
     success: bool
     data: str

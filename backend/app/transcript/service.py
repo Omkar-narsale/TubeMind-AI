@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, List, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
@@ -9,6 +10,7 @@ from youtube_transcript_api._errors import (
     InvalidVideoId,
 )
 
+from app.core.config import settings
 from app.transcript.exceptions import (
     TranscriptDisabledError,
     NoCaptionsError,
@@ -19,11 +21,31 @@ from app.transcript.exceptions import (
 )
 from app.transcript.parser import normalize_transcript
 from app.transcript.cache import transcript_cache
+from app.transcript.whisper import WhisperService
+
+logger = logging.getLogger("app.transcript.service")
 
 
 class TranscriptService:
-    def __init__(self, cache=transcript_cache):
+    def __init__(self, cache=transcript_cache, whisper_service: Optional[WhisperService] = None):
         self.cache = cache
+        self.whisper_service = whisper_service or WhisperService()
+
+    def _attempt_whisper_fallback(self, video_id: str, target_lang: str) -> Optional[Dict[str, Any]]:
+        """
+        Attempts to transcribe video audio using Groq Whisper when YouTube captions are unavailable.
+        """
+        if not settings.ENABLE_WHISPER_FALLBACK:
+            return None
+        try:
+            logger.info(f"Attempting Groq Whisper audio fallback for video: {video_id}")
+            result = self.whisper_service.transcribe(video_id, target_language=target_lang)
+            if result and result.get("segments"):
+                self.cache.set(video_id, result, target_lang)
+                return result
+        except Exception as e:
+            logger.warning(f"Groq Whisper fallback failed for {video_id}: {str(e)}")
+        return None
 
     def get_transcript(self, video_id: str, target_language: Optional[str] = "auto") -> Dict[str, Any]:
         """
@@ -177,14 +199,28 @@ class TranscriptService:
             return result
 
         except TranscriptsDisabled:
-            raise TranscriptDisabledError("Transcripts are disabled for this video.")
+            whisper_result = self._attempt_whisper_fallback(video_id, target_lang)
+            if whisper_result:
+                return whisper_result
+            raise TranscriptDisabledError("Transcripts are disabled for this video and Whisper fallback was unavailable.")
+        except NoCaptionsError as nce:
+            whisper_result = self._attempt_whisper_fallback(video_id, target_lang)
+            if whisper_result:
+                return whisper_result
+            raise nce
+        except (YouTubeRequestFailed, IpBlocked):
+            whisper_result = self._attempt_whisper_fallback(video_id, target_lang)
+            if whisper_result:
+                return whisper_result
+            raise RateLimitError("YouTube rate limit exceeded or access was blocked. Please try again later.")
         except VideoUnavailable:
             raise VideoUnavailableError("The video is unavailable, private, or blocked.")
-        except (YouTubeRequestFailed, IpBlocked):
-            raise RateLimitError("YouTube rate limit exceeded or access was blocked. Please try again later.")
         except InvalidVideoId:
             raise InvalidVideoIdError("YouTube API rejected the Video ID format.")
         except TranscriptError as te:
             raise te
         except Exception as e:
+            whisper_result = self._attempt_whisper_fallback(video_id, target_lang)
+            if whisper_result:
+                return whisper_result
             raise TranscriptError(f"An unexpected error occurred during transcript retrieval: {str(e)}")

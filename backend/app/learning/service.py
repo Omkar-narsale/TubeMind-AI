@@ -5,10 +5,11 @@ from app.transcript.service import TranscriptService
 from app.learning.models import SummaryType
 from app.llm.cache import LLMCache
 from app.llm.token_manager import TokenBudgetManager
-from app.learning.prompts import INTERVIEW_PROMPT
+from app.learning.prompts import INTERVIEW_PROMPT, FLASHCARDS_PROMPT, QUIZ_PROMPT
 from app.llm.prompts import STUDY_NOTES_PROMPT, KEY_TAKEAWAYS_PROMPT
 from app.llm.executor import unified_executor
 from app.core.config import settings
+from fastapi import HTTPException
 
 logger = logging.getLogger("app.learning.service")
 
@@ -221,7 +222,13 @@ class LearningService:
         if target_lang and target_lang != "auto":
             LLMCache.set_video_language_preference(video_id, target_lang)
 
-        detailed_summary = await self._get_or_create_detailed_summary(video_id)
+        try:
+            detailed_summary = await self._get_or_create_detailed_summary(video_id)
+        except Exception as e:
+            # If transcript retrieval fails, surface a clear client error
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=str(e))
+
         base_text = LLMCache.get_summary(video_id, summary_type_str, "en", "en") or detailed_summary
 
         return await self._translate_if_needed(video_id, base_text, target_lang)
@@ -235,7 +242,11 @@ class LearningService:
         if cached_notes:
             return cached_notes
 
-        detailed_summary = await self._get_or_create_detailed_summary(video_id)
+        try:
+            detailed_summary = await self._get_or_create_detailed_summary(video_id)
+        except Exception as e:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=str(e))
 
         prompt = STUDY_NOTES_PROMPT.format(transcript=detailed_summary)
         messages = [
@@ -315,3 +326,89 @@ class LearningService:
         final_interview = await self._translate_if_needed(video_id, res, target_lang)
         LLMCache.set_interview(video_id, "en", target_lang, final_interview)
         return final_interview
+
+    @staticmethod
+    def _clean_json_str(text: str) -> str:
+        s = text.strip()
+        # Find first '[' and last ']'
+        start = s.find("[")
+        end = s.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            return s[start:end+1].strip()
+        
+        # If truncated (starts with [ but no closing ]), salvage completed objects up to last }
+        if start != -1:
+            last_brace = s.rfind("}")
+            if last_brace != -1 and last_brace > start:
+                return (s[start:last_brace+1] + "]").strip()
+
+        # Fallback stripping of code fences
+        if s.startswith("```json"):
+            s = s[7:]
+        elif s.startswith("```"):
+            s = s[3:]
+        if s.endswith("```"):
+            s = s[:-3]
+        return s.strip()
+
+    async def generate_flashcards(self, video_id: str, language: Optional[str] = "auto") -> str:
+        target_lang = language or "auto"
+        if target_lang and target_lang != "auto":
+            LLMCache.set_video_language_preference(video_id, target_lang)
+
+        cached_cards = LLMCache.get_flashcards(video_id, "en", target_lang)
+        if cached_cards:
+            return cached_cards
+
+        detailed_summary = await self._get_or_create_detailed_summary(video_id)
+
+        prompt = FLASHCARDS_PROMPT.format(context=detailed_summary)
+        messages = [
+            {"role": "system", "content": "You are an educational study assistant that creates flashcards in strictly valid JSON format."},
+            {"role": "user", "content": prompt}
+        ]
+
+        res = await unified_executor.execute(
+            video_id=video_id,
+            feature="flashcards",
+            transcript_language="en",
+            output_language="en",
+            messages=messages,
+            max_tokens=1600
+        )
+
+        cleaned = self._clean_json_str(res)
+        final_cards = await self._translate_if_needed(video_id, cleaned, target_lang)
+        LLMCache.set_flashcards(video_id, "en", target_lang, final_cards)
+        return final_cards
+
+    async def generate_quiz(self, video_id: str, language: Optional[str] = "auto") -> str:
+        target_lang = language or "auto"
+        if target_lang and target_lang != "auto":
+            LLMCache.set_video_language_preference(video_id, target_lang)
+
+        cached_quiz = LLMCache.get_quiz(video_id, "en", target_lang)
+        if cached_quiz:
+            return cached_quiz
+
+        detailed_summary = await self._get_or_create_detailed_summary(video_id)
+
+        prompt = QUIZ_PROMPT.format(context=detailed_summary)
+        messages = [
+            {"role": "system", "content": "You are an educational quiz generator that generates interactive multiple-choice questions in strictly valid JSON format."},
+            {"role": "user", "content": prompt}
+        ]
+
+        res = await unified_executor.execute(
+            video_id=video_id,
+            feature="quiz",
+            transcript_language="en",
+            output_language="en",
+            messages=messages,
+            max_tokens=1800
+        )
+
+        cleaned = self._clean_json_str(res)
+        final_quiz = await self._translate_if_needed(video_id, cleaned, target_lang)
+        LLMCache.set_quiz(video_id, "en", target_lang, final_quiz)
+        return final_quiz

@@ -131,6 +131,72 @@ export function App() {
           </CardFooter>
         </Card>
 
+        {/* Second Brain Integration Card */}
+        <Card className="bg-slate-900 border-slate-900 text-slate-100 shadow-xl shadow-slate-950/50">
+          <CardHeader className="border-b border-slate-950 pb-4">
+            <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
+              <span>Second Brain Direct Sync</span>
+              <span className="text-[10px] font-bold bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-full uppercase">
+                Notion & Obsidian
+              </span>
+            </CardTitle>
+            <CardDescription className="text-slate-400 text-xs">
+              Export study notes, summaries, and takeaways directly into your Notion workspace or Obsidian knowledge vault with 1 click.
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-4 pt-5">
+            {/* Notion API Key */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                Notion Integration Secret (API Token)
+              </label>
+              <Input
+                type="password"
+                value={settings.notionApiKey || ""}
+                onChange={(e) => updateSettings({ notionApiKey: e.target.value })}
+                className="bg-slate-950 border-slate-950 text-slate-100 text-sm focus-visible:ring-primary h-10 rounded-xl font-mono"
+                placeholder="ntn_... or secret_..."
+              />
+              <span className="text-[10px] text-slate-500 block">
+                Create an internal integration at <a href="https://www.notion.so/profile/integrations" target="_blank" rel="noreferrer" className="text-primary hover:underline">notion.so/profile/integrations</a> and share your notes database with it.
+              </span>
+            </div>
+
+            {/* Notion Database / Page ID */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                Notion Database ID or Parent Page ID
+              </label>
+              <Input
+                value={settings.notionDatabaseId || ""}
+                onChange={(e) => updateSettings({ notionDatabaseId: e.target.value })}
+                className="bg-slate-950 border-slate-950 text-slate-100 text-sm focus-visible:ring-primary h-10 rounded-xl font-mono"
+                placeholder="32-character ID or full Notion URL"
+              />
+              <span className="text-[10px] text-slate-500 block">
+                Found in your Notion page URL: https://notion.so/workspace/Page-Title-[ID]
+              </span>
+            </div>
+
+            {/* Obsidian Vault Name */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                Obsidian Vault Name (Optional)
+              </label>
+              <Input
+                value={settings.obsidianVaultName || ""}
+                onChange={(e) => updateSettings({ obsidianVaultName: e.target.value })}
+                className="bg-slate-950 border-slate-950 text-slate-100 text-sm focus-visible:ring-primary h-10 rounded-xl"
+                placeholder="e.g. My Vault, KnowledgeBase"
+              />
+              <span className="text-[10px] text-slate-500 block">
+                Enables 1-click launch via obsidian:// protocol to directly write notes into your vault.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Security / Health disclaimer */}
         <div className="rounded-xl bg-slate-900 border border-slate-950 p-4 text-xs text-slate-400 flex gap-3 shadow-md shadow-slate-950/20">
           <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-500" />

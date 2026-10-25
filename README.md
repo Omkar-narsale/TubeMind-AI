@@ -57,50 +57,36 @@ Using **Hybrid Transcript Retrieval**, **Retrieval-Augmented Generation (RAG)**,
 
 - Multi-turn conversation memory
 - Streaming AI responses
-- Timestamp citations
+- Timestamp citations & video seeking
+- 🎯 **Ask About This Moment**: Real-time video playback synchronization with ±90s proximity context injection for scene-level Q&A
 - Markdown rendering
 - Retry responses
 - Copy responses
 
 ---
 
-## 📚 AI Learning
+## 📚 AI Learning & Second Brain
 
-- Short Summary
-- Detailed Summary
-- Bullet Summary
-- Study Notes
-- Key Takeaways
-- Interview Questions
+- Short Summary, Detailed Summary & Bullet Summary
+- Study Notes & Key Takeaways
+- Technical Interview Prep
+- 🗂️ Interactive Study Flashcards (with 3D Flip & Anki .csv Export)
+- 📝 Interactive Quiz Mode (Instant Feedback & Timestamp Video Seek)
+- 🎙️ Groq Whisper Speech-to-Text Audio Fallback (yt-dlp native extraction)
+- 🧠 **Second Brain Direct Sync**:
+  - **Notion Direct Integration**: 1-click sync to Notion databases/pages with formatted headers, callouts, and lists
+  - **Obsidian Direct Export**: YAML frontmatter, native Obsidian callouts, clickable timestamp anchors, and `obsidian://` protocol launch
+  - **Document Exports**: PDF, Word (.docx), Markdown (.md), and full package (.zip)
 
 ---
 
-## 🌍 Multilingual AI
+## 🌍 Multilingual AI (14+ Languages)
 
 - Automatic language detection
 - Hybrid transcript retrieval
-- AI-powered translation
-- English
-- Hindi
-- Marathi
-- Tamil
-- Telugu
-- Kannada
-- Gujarati
-- Punjabi
-- Spanish
-- French
-- German
-- Japanese
-- Korean
-- Chinese
-
-Supports translation for:
-
-- Summary
-- Study Notes
-- Key Takeaways
-- Interview Questions
+- AI-powered translation for Summaries, Study Notes, Takeaways, Interview Prep, Flashcards & Quizzes:
+  - English, Hindi, Marathi, Tamil, Telugu, Kannada, Gujarati, Punjabi
+  - Spanish, French, German, Japanese, Korean, Chinese
 
 ---
 
@@ -111,28 +97,23 @@ Export generated learning content as:
 - 📄 PDF
 - 📝 Microsoft Word (.docx)
 - 📋 Markdown (.md)
-
-Supports exporting:
-
-- Summary
-- Study Notes
-- Key Takeaways
-- Interview Questions
+- 📦 Full Bundle (.zip)
 
 ---
 
-## 🧠 Hybrid RAG Pipeline
+## 🧠 Hybrid RAG Pipeline & Course Learning
 
-- Hybrid Transcript Retrieval
-- Transcript Compression
-- Semantic Chunking
+- 📚 **Multi-Video / Course-Level Playlist RAG**:
+  - Automatically detects YouTube course playlists
+  - 1-Click indexes up to 20 lectures into a unified FAISS cross-video vector store
+  - Cross-video AI tutor Q&A citing exact lecture titles and timestamps
+- Hybrid Transcript Retrieval with Whisper Audio Fallback
+- Transcript Compression & Chunking
+- Semantic Chunking & Boundary Alignment
 - Sentence Transformers
-- Embedding Generation
-- FAISS Vector Search
-- Hybrid Semantic Search
-- Context Compression
-- Prompt Engineering
-- AI Translation Layer
+- FAISS Vector Search (Inner Product Cosine Similarity)
+- Semantic Retrieval & Dynamic Context Compression
+- Prompt Engineering & Hallucination Guardrails
 
 ---
 
@@ -396,17 +377,21 @@ Available for:
 - AI Summary
 - Study Notes
 - Key Takeaways
-- Interview Questions
-- Multilingual AI Translation
-- Export to PDF
-- Export to DOCX
-- Export to Markdown
+- Interview Questions & Technical Prep
+- 🗂️ Interactive Flashcards (3D Flip & Anki Export)
+- 📝 Interactive Quiz Mode (Instant Scoring & Timestamp Seek)
+- 🎙️ Groq Whisper Audio Fallback
+- 🎯 "Ask About This Moment" Proximity Q&A
+- 🧠 Second Brain Sync (Notion & Obsidian)
+- 📚 Multi-Video / Course-Level Playlist RAG
+- 🌍 Multilingual AI Translation (14+ Languages)
+- 📄 Multi-Format Export (PDF, DOCX, Markdown, ZIP)
 
 ---
 
 ## 🚧 Coming Soon
 
-- Learning Dashboard
+- Learning Dashboard & Analytics
 - User API Key Support
 - Bookmark & Saved Sessions
 - Chrome Web Store Release

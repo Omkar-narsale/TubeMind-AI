@@ -174,3 +174,59 @@ def test_endpoint_get_transcript_not_found(mock_list):
     json_data = response.json()
     assert json_data["success"] is False
     assert "error" in json_data
+
+
+# --- Groq Whisper Fallback Tests ---
+
+@patch("app.transcript.service.YouTubeTranscriptApi.list")
+def test_service_whisper_fallback_on_transcripts_disabled(mock_list):
+    mock_list.side_effect = TranscriptsDisabled("Transcripts disabled")
+    mock_whisper = MagicMock()
+    mock_whisper.transcribe.return_value = {
+        "success": True,
+        "video_id": "abc123xyz89",
+        "language": "en",
+        "generated": True,
+        "source": "groq_whisper",
+        "segments": [{"text": "Transcribed by Groq Whisper", "start": 0.0, "duration": 3.5}]
+    }
+
+    service = TranscriptService(whisper_service=mock_whisper)
+    result = service.get_transcript("abc123xyz89")
+
+    assert result["success"] is True
+    assert result["source"] == "groq_whisper"
+    assert result["segments"][0]["text"] == "Transcribed by Groq Whisper"
+    mock_whisper.transcribe.assert_called_once_with("abc123xyz89", target_language="auto")
+
+
+@patch("app.transcript.service.YouTubeTranscriptApi.list")
+def test_service_whisper_fallback_on_no_captions(mock_list):
+    mock_list.return_value = MockTranscriptList(has_manual=False, has_generated=False)
+    mock_whisper = MagicMock()
+    mock_whisper.transcribe.return_value = {
+        "success": True,
+        "video_id": "abc123xyz89",
+        "language": "en",
+        "generated": True,
+        "source": "groq_whisper",
+        "segments": [{"text": "Audio extracted and transcribed", "start": 1.0, "duration": 2.0}]
+    }
+
+    service = TranscriptService(whisper_service=mock_whisper)
+    result = service.get_transcript("abc123xyz89")
+
+    assert result["success"] is True
+    assert result["segments"][0]["text"] == "Audio extracted and transcribed"
+    mock_whisper.transcribe.assert_called_once()
+
+
+@patch("app.transcript.service.YouTubeTranscriptApi.list")
+def test_service_whisper_fallback_failure_raises(mock_list):
+    mock_list.side_effect = TranscriptsDisabled("Transcripts disabled")
+    mock_whisper = MagicMock()
+    mock_whisper.transcribe.side_effect = Exception("Audio extraction network error")
+
+    service = TranscriptService(whisper_service=mock_whisper)
+    with pytest.raises(TranscriptDisabledError):
+        service.get_transcript("abc123xyz89")

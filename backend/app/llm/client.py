@@ -350,6 +350,10 @@ class LLMClient:
         async for chunk in self.stream(*args, **kwargs):
             yield chunk
 
+    async def stream_generate(self, *args, **kwargs) -> AsyncGenerator[str, None]:
+        async for chunk in self.stream(*args, **kwargs):
+            yield chunk
+
     # Unified generation methods per feature
     async def generate_summary(
         self,

@@ -143,6 +143,8 @@ class LLMChatService:
         temperature: float = 0.7,
         max_tokens: int = 1024,
         language: Optional[str] = "auto",
+        timestamp_seconds: Optional[float] = None,
+        window_seconds: float = 90.0,
     ) -> Tuple[str, List[RAGSearchResult], ChatMetadata]:
         start_time = time.perf_counter()
         
@@ -168,6 +170,7 @@ class LLMChatService:
         # Grab raw transcript text first (utilizes cache)
         raw_text = ""
         transcript_lang = "en"
+        segments = []
         try:
             transcript_data = self.rag_service.transcript_service.get_transcript(video_id, target_language=resolved_lang)
             segments = transcript_data.get("segments", [])
@@ -191,6 +194,26 @@ class LLMChatService:
             results = self.rag_service.search_transcript(video_id, search_query, top_k=top_k, language=resolved_lang)
         except Exception:
             transcript_available = False
+
+        # Proximity extraction if timestamp_seconds is provided:
+        if timestamp_seconds is not None and segments:
+            start_window = max(0.0, float(timestamp_seconds) - float(window_seconds))
+            end_window = float(timestamp_seconds) + float(window_seconds)
+            prox_segs = [
+                s for s in segments
+                if (float(s.get("start", 0.0)) + float(s.get("duration", 0.0))) >= start_window and float(s.get("start", 0.0)) <= end_window
+            ]
+            if prox_segs:
+                prox_text = " ".join([s.get("text", "") for s in prox_segs])
+                ts_str = self.prompt_builder.format_timestamp(timestamp_seconds)
+                proximity_result = RAGSearchResult(
+                    score=1.0,
+                    text=f"[CURRENT SCENE MOMENT around {ts_str}]: {prox_text}",
+                    start=float(prox_segs[0].get("start", 0.0)),
+                    end=float(prox_segs[-1].get("start", 0.0)) + float(prox_segs[-1].get("duration", 0.0)),
+                    chunk_index=-1
+                )
+                results = [proximity_result] + [r for r in results if r.chunk_index != -1]
             
         max_tokens_map = {
             "INTERVIEW": 300,
@@ -209,6 +232,7 @@ class LLMChatService:
             old_history_summary="",
             target_language=resolved_lang,
             raw_transcript=raw_text,
+            timestamp_seconds=timestamp_seconds,
         )
 
         from app.llm.executor import unified_executor
@@ -241,6 +265,8 @@ class LLMChatService:
         temperature: float = 0.7,
         max_tokens: int = 1024,
         language: Optional[str] = "auto",
+        timestamp_seconds: Optional[float] = None,
+        window_seconds: float = 90.0,
     ) -> AsyncGenerator[Tuple[str, str], None]:
         start_time = time.perf_counter()
         
@@ -266,6 +292,7 @@ class LLMChatService:
         # Grab raw transcript text first (utilizes cache)
         raw_text = ""
         transcript_lang = "en"
+        segments = []
         try:
             transcript_data = self.rag_service.transcript_service.get_transcript(video_id, target_language=resolved_lang)
             segments = transcript_data.get("segments", [])
@@ -289,6 +316,26 @@ class LLMChatService:
             results = self.rag_service.search_transcript(video_id, search_query, top_k=top_k, language=resolved_lang)
         except Exception:
             transcript_available = False
+
+        # Proximity extraction if timestamp_seconds is provided:
+        if timestamp_seconds is not None and segments:
+            start_window = max(0.0, float(timestamp_seconds) - float(window_seconds))
+            end_window = float(timestamp_seconds) + float(window_seconds)
+            prox_segs = [
+                s for s in segments
+                if (float(s.get("start", 0.0)) + float(s.get("duration", 0.0))) >= start_window and float(s.get("start", 0.0)) <= end_window
+            ]
+            if prox_segs:
+                prox_text = " ".join([s.get("text", "") for s in prox_segs])
+                ts_str = self.prompt_builder.format_timestamp(timestamp_seconds)
+                proximity_result = RAGSearchResult(
+                    score=1.0,
+                    text=f"[CURRENT SCENE MOMENT around {ts_str}]: {prox_text}",
+                    start=float(prox_segs[0].get("start", 0.0)),
+                    end=float(prox_segs[-1].get("start", 0.0)) + float(prox_segs[-1].get("duration", 0.0)),
+                    chunk_index=-1
+                )
+                results = [proximity_result] + [r for r in results if r.chunk_index != -1]
             
         yield "context", json.dumps(jsonable_encoder(results))
         
@@ -309,6 +356,7 @@ class LLMChatService:
             old_history_summary="",
             target_language=resolved_lang,
             raw_transcript=raw_text,
+            timestamp_seconds=timestamp_seconds,
         )
 
         from app.llm.executor import unified_executor

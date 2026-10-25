@@ -78,6 +78,7 @@ class PromptBuilder:
         old_history_summary: Optional[str] = None,
         target_language: Optional[str] = "auto",
         raw_transcript: Optional[str] = None,
+        timestamp_seconds: Optional[float] = None,
     ) -> List[Dict[str, str]]:
         messages = []
         
@@ -111,12 +112,22 @@ class PromptBuilder:
             f"Generate the response in the selected output language ({output_language}) while preserving the meaning and technical accuracy of the original content. "
             f"You MUST generate your entire response, including all headings and explanations, directly in {output_language} without separate translation."
         )
+
+        # Proximity focus prompt injection
+        if timestamp_seconds is not None:
+            ts_badge = self.format_timestamp(timestamp_seconds)
+            custom_system_prompt += (
+                f"\n\n🎯 CURRENT SCENE FOCUS: The user is currently watching the video at timestamp [{ts_badge}]. "
+                f"Prioritize explaining what is happening, taught, or shown at and around [{ts_badge}] in the video."
+            )
         
         # 1. System Prompt
         messages.append({"role": "system", "content": custom_system_prompt})
         
-        # 2. Retrieved context optimization (Dynamic Context Selection based on estimated tokens)
-        if transcript_available and raw_transcript:
+        # 2. Retrieved context optimization
+        if timestamp_seconds is not None and retrieved_context:
+            context_text = self._build_semantic_context(retrieved_context, video_id)
+        elif transcript_available and raw_transcript:
             from app.llm.token_manager import TokenBudgetManager
             est_tokens = TokenBudgetManager.estimate_tokens(raw_transcript)
             if est_tokens < 2500:
@@ -176,8 +187,11 @@ class PromptBuilder:
         if video_id and rag_vector_store.has_index(video_id):
             _, all_chunks = rag_vector_store.get_index(video_id)
             
+        proximity_chunks = [c for c in retrieved_context if c.chunk_index < 0]
+        regular_chunks = [c for c in retrieved_context if c.chunk_index >= 0]
+
         selected_indices = set()
-        for chunk in retrieved_context:
+        for chunk in regular_chunks:
             idx = chunk.chunk_index
             selected_indices.add(idx)
             if idx > 0:
@@ -185,7 +199,7 @@ class PromptBuilder:
             if all_chunks and idx < len(all_chunks) - 1:
                 selected_indices.add(idx + 1)
                 
-        candidate_chunks = []
+        candidate_chunks = list(proximity_chunks)
         if all_chunks:
             for idx in sorted(selected_indices):
                 if 0 <= idx < len(all_chunks):
@@ -198,7 +212,7 @@ class PromptBuilder:
                         chunk_index=c.chunk_index
                     ))
         else:
-            candidate_chunks = sorted(retrieved_context, key=lambda x: x.chunk_index)
+            candidate_chunks += sorted(regular_chunks, key=lambda x: x.chunk_index)
             
         merged_chunks = []
         for chunk in candidate_chunks:

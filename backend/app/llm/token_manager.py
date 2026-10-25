@@ -8,6 +8,8 @@ class TokenBudgetManager:
     CHAR_TO_TOKEN_RATIO = 4.0
     # Model limits mapping
     MODEL_LIMITS = {
+        "openai/gpt-oss-120b": 12000,
+        "openai/gpt-oss-20b": 12000,
         "llama-3.3-70b-versatile": 12000, # Groq limit specified in request is 12000
         "llama-3.1-8b-instant": 12000,
         "default": 12000

@@ -40,6 +40,7 @@ export interface VideoTranscript {
   video_id: string;
   language: string;
   generated: boolean;
+  source?: string;
   segments: TranscriptSegment[];
 }
 
@@ -190,6 +191,8 @@ export interface ChatRequest {
   max_tokens?: number;
   stream?: boolean;
   language?: string;
+  timestamp_seconds?: number;
+  window_seconds?: number;
 }
 
 export interface ChatMetadata {
@@ -401,6 +404,46 @@ export const learningService = {
     console.debug("[DEBUG][api] getInterviewQuestions response:", JSON.stringify(json));
     return json;
   },
+
+  getFlashcards: async (videoId: string, language?: string): Promise<LearningResponse> => {
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/learning/flashcards`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getFlashcards payload:", JSON.stringify(payload));
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getFlashcards HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate flashcards (HTTP ${response.status})`);
+    }
+    const json = await response.json();
+    console.debug("[DEBUG][api] getFlashcards response:", JSON.stringify(json));
+    return json;
+  },
+
+  getQuiz: async (videoId: string, language?: string): Promise<LearningResponse> => {
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/learning/quiz`;
+    const payload = { video_id: videoId, language: language || "auto" };
+    console.debug("[DEBUG][api] getQuiz payload:", JSON.stringify(payload));
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "unknown");
+      console.error("[DEBUG][api] getQuiz HTTP error:", response.status, errText);
+      throw new Error(`Failed to generate quiz (HTTP ${response.status})`);
+    }
+    const json = await response.json();
+    console.debug("[DEBUG][api] getQuiz response:", JSON.stringify(json));
+    return json;
+  },
 };
 
 export interface ExportPayload {
@@ -417,6 +460,29 @@ export interface ExportAllPayload {
   youtube_url?: string;
   language?: string;
   contents: Record<string, string>;
+}
+
+export interface ObsidianExportPayload extends ExportPayload {
+  vault_name?: string;
+  tags?: string[];
+}
+
+export interface NotionExportPayload {
+  api_key?: string;
+  parent_id?: string;
+  video_title?: string;
+  youtube_url?: string;
+  feature: string;
+  language?: string;
+  content: string;
+  tags?: string[];
+}
+
+export interface NotionExportResult {
+  success: boolean;
+  page_id?: string;
+  url?: string;
+  message: string;
 }
 
 export const exportService = {
@@ -465,6 +531,41 @@ export const exportService = {
     _triggerFileDownload(blob, _getFilenameFromHeader(response) || `${payload.feature}.md`);
   },
 
+  exportObsidian: async (payload: ObsidianExportPayload, openInApp = false): Promise<string | null> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/export/obsidian`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to generate Obsidian note: ${err}`);
+    }
+    const obsidianUri = response.headers.get("X-Obsidian-URI");
+    if (openInApp && obsidianUri) {
+      window.location.href = obsidianUri;
+    } else {
+      const blob = await response.blob();
+      _triggerFileDownload(blob, _getFilenameFromHeader(response) || `${payload.feature}_obsidian.md`);
+    }
+    return obsidianUri;
+  },
+
+  exportNotion: async (payload: NotionExportPayload): Promise<NotionExportResult> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/export/notion`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => ({}));
+      throw new Error(errorJson.detail || `Failed to sync to Notion (HTTP ${response.status})`);
+    }
+    return await response.json();
+  },
+
   exportAllZip: async (payload: ExportAllPayload): Promise<void> => {
     const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/export/all`, {
@@ -478,6 +579,178 @@ export const exportService = {
     }
     const blob = await response.blob();
     _triggerFileDownload(blob, _getFilenameFromHeader(response) || "TubeMind_All_Content.zip");
+  },
+};
+
+export interface PlaylistVideoItem {
+  video_id: string;
+  title: string;
+  duration?: number;
+  position?: number;
+  url?: string;
+}
+
+export interface PlaylistInfoResponse {
+  playlist_id: string;
+  title: string;
+  video_count: number;
+  videos: PlaylistVideoItem[];
+}
+
+export interface PlaylistIndexStatus {
+  playlist_id: string;
+  title: string;
+  total_videos: number;
+  indexed_videos: number;
+  failed_videos: number;
+  total_chunks: number;
+  is_ready: boolean;
+  video_details?: any[];
+}
+
+export interface PlaylistSearchResult {
+  video_id: string;
+  video_title: string;
+  score: number;
+  text: string;
+  start: number;
+  end: number;
+  chunk_index: number;
+  formatted_citation: string;
+}
+
+export interface PlaylistChatRequest {
+  playlist_id: string;
+  query: string;
+  history?: Array<{ role: string; content: string }>;
+  temperature?: number;
+  max_tokens?: number;
+  stream?: boolean;
+  language?: string;
+}
+
+export const playlistService = {
+  getInfo: async (playlistIdOrUrl: string): Promise<PlaylistInfoResponse> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/playlist/info`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playlist_id_or_url: playlistIdOrUrl }),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to fetch playlist info: ${err}`);
+    }
+    return await response.json();
+  },
+
+  index: async (playlistId: string, maxVideos = 12, videos?: PlaylistVideoItem[]): Promise<PlaylistIndexStatus> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/playlist/index`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playlist_id: playlistId,
+        max_videos: maxVideos,
+        videos: videos,
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to index playlist: ${err}`);
+    }
+    return await response.json();
+  },
+
+  getStatus: async (playlistId: string): Promise<PlaylistIndexStatus> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/playlist/status/${playlistId}`);
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to fetch playlist status: ${err}`);
+    }
+    return await response.json();
+  },
+
+  search: async (playlistId: string, query: string, topK = 6): Promise<PlaylistSearchResult[]> => {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/playlist/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playlist_id: playlistId, query, top_k: topK }),
+    });
+    if (!response.ok) {
+      const err = await response.text().catch(() => "unknown");
+      throw new Error(`Failed to search playlist: ${err}`);
+    }
+    const json = await response.json();
+    return json.results;
+  },
+
+  chatStream: async (
+    payload: PlaylistChatRequest,
+    onContext: (context: PlaylistSearchResult[]) => void,
+    onChunk: (chunk: string) => void,
+    onDone: () => void,
+    onError: (err: any) => void,
+  ): Promise<() => void> => {
+    const baseUrl = getBaseUrl();
+    const controller = new AbortController();
+
+    fetch(`${baseUrl}/playlist/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, stream: true }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Playlist chat failed: HTTP ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("Response body is not readable");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const block of lines) {
+            const blockLines = block.split("\n");
+            let event = "message";
+            let dataStr = "";
+
+            for (const line of blockLines) {
+              if (line.startsWith("event: ")) event = line.slice(7).trim();
+              if (line.startsWith("data: ")) dataStr = line.slice(6).trim();
+            }
+
+            if (!dataStr) continue;
+
+            try {
+              const data = JSON.parse(dataStr);
+              if (event === "context") onContext(data);
+              else if (event === "chunk") onChunk(data.token || "");
+              else if (event === "done") onDone();
+              else if (event === "error") onError(data.message);
+            } catch {
+              // Ignore invalid JSON chunk
+            }
+          }
+        }
+        onDone();
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") onError(err);
+      });
+
+    return () => controller.abort();
   },
 };
 

@@ -13,6 +13,9 @@ export interface ExtensionSettings {
   selectedModel: string;
   apiKey: string;
   responseLanguage?: string;
+  notionApiKey?: string;
+  notionDatabaseId?: string;
+  obsidianVaultName?: string;
 }
 
 

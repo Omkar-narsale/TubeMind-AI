@@ -29,21 +29,29 @@ interface LearningState {
   studyNotes: Record<string, string>;
   takeaways: Record<string, string[]>;
   interviewQuestions: Record<string, string>;
+  flashcards: Record<string, string>;
+  quiz: Record<string, string>;
   
   loadingSummary: boolean;
   loadingNotes: boolean;
   loadingTakeaways: boolean;
   loadingInterview: boolean;
+  loadingFlashcards: boolean;
+  loadingQuiz: boolean;
   
   errorSummary: string | null;
   errorNotes: string | null;
   errorTakeaways: string | null;
   errorInterview: string | null;
+  errorFlashcards: string | null;
+  errorQuiz: string | null;
 
   generateSummary: (videoId: string, type: "short" | "detailed" | "bullet", force?: boolean) => Promise<void>;
   generateStudyNotes: (videoId: string, force?: boolean) => Promise<void>;
   generateTakeaways: (videoId: string, force?: boolean) => Promise<void>;
   generateInterviewQuestions: (videoId: string, force?: boolean) => Promise<void>;
+  generateFlashcards: (videoId: string, force?: boolean) => Promise<void>;
+  generateQuiz: (videoId: string, force?: boolean) => Promise<void>;
 }
 
 export const useLearningStore = create<LearningState>((set, get) => ({
@@ -51,16 +59,22 @@ export const useLearningStore = create<LearningState>((set, get) => ({
   studyNotes: {},
   takeaways: {},
   interviewQuestions: {},
+  flashcards: {},
+  quiz: {},
   
   loadingSummary: false,
   loadingNotes: false,
   loadingTakeaways: false,
   loadingInterview: false,
+  loadingFlashcards: false,
+  loadingQuiz: false,
   
   errorSummary: null,
   errorNotes: null,
   errorTakeaways: null,
   errorInterview: null,
+  errorFlashcards: null,
+  errorQuiz: null,
 
   generateSummary: async (videoId: string, type: "short" | "detailed" | "bullet", force = false) => {
     if (!videoId) return;
@@ -223,6 +237,78 @@ export const useLearningStore = create<LearningState>((set, get) => ({
     } catch (err: any) {
       logger.error("Failed to generate interview questions:", err);
       set({ loadingInterview: false, errorInterview: err.message || "Failed to generate interview questions" });
+    } finally {
+      inFlight.delete(flightKey);
+    }
+  },
+
+  generateFlashcards: async (videoId: string, force = false) => {
+    if (!videoId) return;
+
+    const existing = get().flashcards[videoId];
+    if (existing && !force) {
+      console.debug("[DEBUG][learningStore] generateFlashcards: cached, skipping", videoId);
+      return;
+    }
+
+    const flightKey = `flashcards:${videoId}`;
+    if (inFlight.has(flightKey)) {
+      console.debug("[DEBUG][learningStore] generateFlashcards: already in-flight, skipping", flightKey);
+      return;
+    }
+    inFlight.add(flightKey);
+
+    set({ loadingFlashcards: true, errorFlashcards: null });
+    try {
+      const lang = resolveLanguage();
+      console.debug("[DEBUG][learningStore] generateFlashcards: calling API", { videoId, lang });
+      const response = await learningService.getFlashcards(videoId, lang);
+      set((state) => ({
+        flashcards: {
+          ...state.flashcards,
+          [videoId]: response.data,
+        },
+        loadingFlashcards: false,
+      }));
+    } catch (err: any) {
+      logger.error("Failed to generate flashcards:", err);
+      set({ loadingFlashcards: false, errorFlashcards: err.message || "Failed to generate flashcards" });
+    } finally {
+      inFlight.delete(flightKey);
+    }
+  },
+
+  generateQuiz: async (videoId: string, force = false) => {
+    if (!videoId) return;
+
+    const existing = get().quiz[videoId];
+    if (existing && !force) {
+      console.debug("[DEBUG][learningStore] generateQuiz: cached, skipping", videoId);
+      return;
+    }
+
+    const flightKey = `quiz:${videoId}`;
+    if (inFlight.has(flightKey)) {
+      console.debug("[DEBUG][learningStore] generateQuiz: already in-flight, skipping", flightKey);
+      return;
+    }
+    inFlight.add(flightKey);
+
+    set({ loadingQuiz: true, errorQuiz: null });
+    try {
+      const lang = resolveLanguage();
+      console.debug("[DEBUG][learningStore] generateQuiz: calling API", { videoId, lang });
+      const response = await learningService.getQuiz(videoId, lang);
+      set((state) => ({
+        quiz: {
+          ...state.quiz,
+          [videoId]: response.data,
+        },
+        loadingQuiz: false,
+      }));
+    } catch (err: any) {
+      logger.error("Failed to generate quiz:", err);
+      set({ loadingQuiz: false, errorQuiz: err.message || "Failed to generate quiz" });
     } finally {
       inFlight.delete(flightKey);
     }

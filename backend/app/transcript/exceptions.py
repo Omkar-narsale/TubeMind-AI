@@ -26,3 +26,8 @@ class RateLimitError(TranscriptError):
 class InvalidVideoIdError(TranscriptError):
     """Raised when the video ID is invalid."""
     pass
+
+
+class WhisperTranscriptionError(TranscriptError):
+    """Raised when Groq Whisper transcription fails."""
+    pass

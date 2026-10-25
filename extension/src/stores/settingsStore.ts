@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS: ExtensionSettings = {
   selectedModel: "tubemind-model-v1",
   apiKey: "",
   responseLanguage: "auto",
+  notionApiKey: "",
+  notionDatabaseId: "",
+  obsidianVaultName: "",
 };
 
 

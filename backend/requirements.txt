@@ -11,4 +11,4 @@ sentence-transformers>=2.5.0
 faiss-cpu>=1.7.4
 numpy>=1.22.0
 groq>=0.9.0
-
+yt-dlp>=2024.0.0

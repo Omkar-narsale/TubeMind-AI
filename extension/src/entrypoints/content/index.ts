@@ -63,6 +63,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     } else {
       sendResponse({ success: false, error: "Video element not found" });
     }
+  } else if (message.action === "GET_CURRENT_TIME") {
+    const video = document.querySelector("video");
+    if (video) {
+      sendResponse({ success: true, currentTime: video.currentTime || 0 });
+    } else {
+      sendResponse({ success: false, currentTime: 0, error: "Video element not found" });
+    }
   }
   return true;
 });

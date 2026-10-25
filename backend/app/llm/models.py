@@ -23,6 +23,8 @@ class ChatRequest(BaseModel):
     max_tokens: Optional[int] = 1024
     stream: Optional[bool] = True
     language: Optional[str] = "auto"
+    timestamp_seconds: Optional[float] = None
+    window_seconds: Optional[float] = 90.0
 
 
 class ChatMetadata(BaseModel):

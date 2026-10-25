@@ -39,6 +39,8 @@ async def chat_endpoint(
                         temperature=payload.temperature,
                         max_tokens=payload.max_tokens,
                         language=payload.language,
+                        timestamp_seconds=payload.timestamp_seconds,
+                        window_seconds=payload.window_seconds or 90.0,
                     ):
                         data_payload = json.dumps({"event": event_type, "data": content})
                         yield f"data: {data_payload}\n\n"
@@ -61,6 +63,8 @@ async def chat_endpoint(
                 temperature=payload.temperature,
                 max_tokens=payload.max_tokens,
                 language=payload.language,
+                timestamp_seconds=payload.timestamp_seconds,
+                window_seconds=payload.window_seconds or 90.0,
             )
             data = ChatResponse(success=True, answer=answer, context=context, metadata=metadata)
             return APIResponse(

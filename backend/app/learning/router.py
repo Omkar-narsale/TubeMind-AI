@@ -5,6 +5,8 @@ from app.learning.models import (
     NotesRequest,
     TakeawaysRequest,
     InterviewRequest,
+    FlashcardRequest,
+    QuizRequest,
     LearningResponse,
 )
 from app.learning.service import LearningService
@@ -71,6 +73,32 @@ async def generate_interview_questions(
         return LearningResponse(success=True, data=data)
     except Exception as e:
         logger.exception("Error in generate_interview_questions endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/flashcards", response_model=LearningResponse)
+async def generate_flashcards(
+    payload: FlashcardRequest,
+    service: LearningService = Depends(get_learning_service),
+):
+    try:
+        data = await service.generate_flashcards(payload.video_id, language=payload.resolved_language)
+        return LearningResponse(success=True, data=data)
+    except Exception as e:
+        logger.exception("Error in generate_flashcards endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/quiz", response_model=LearningResponse)
+async def generate_quiz(
+    payload: QuizRequest,
+    service: LearningService = Depends(get_learning_service),
+):
+    try:
+        data = await service.generate_quiz(payload.video_id, language=payload.resolved_language)
+        return LearningResponse(success=True, data=data)
+    except Exception as e:
+        logger.exception("Error in generate_quiz endpoint")
         raise HTTPException(status_code=500, detail=str(e))
 
 

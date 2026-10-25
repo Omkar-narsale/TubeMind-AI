@@ -37,3 +37,27 @@ class ExportAllRequest(BaseModel):
     def get_filename(self) -> str:
         clean_title = sanitize_filename(self.video_title or "TubeMind")
         return f"{clean_title}_All_Content.zip"
+
+
+class ObsidianExportRequest(ExportRequest):
+    vault_name: Optional[str] = None
+    tags: Optional[list[str]] = Field(default_factory=lambda: ["tubemind", "youtube-notes"])
+
+
+class NotionExportRequest(BaseModel):
+    api_key: Optional[str] = None
+    parent_id: Optional[str] = None  # Database ID or Page ID
+    video_title: Optional[str] = "YouTube Video"
+    youtube_url: Optional[str] = ""
+    feature: str  # "summary", "study_notes", etc.
+    language: Optional[str] = "English"
+    content: str
+    tags: Optional[list[str]] = Field(default_factory=lambda: ["TubeMind AI", "YouTube"])
+
+
+class NotionExportResponse(BaseModel):
+    success: bool
+    page_id: Optional[str] = None
+    url: Optional[str] = None
+    message: str
+

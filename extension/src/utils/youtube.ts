@@ -47,6 +47,25 @@ export function extractVideoId(urlString: string): string | null {
 }
 
 /**
+ * Extracts the playlist ID from a YouTube URL (e.g. list=PL...).
+ */
+export function extractPlaylistId(urlString: string): string | null {
+  try {
+    if (!urlString) return null;
+    const url = new URL(urlString);
+    const list = url.searchParams.get("list");
+    if (!list || list.trim() === "") return null;
+    // Ignore YouTube Mix radio queues (RD..., UL..., TL...)
+    if (list.startsWith("RD") || list.startsWith("UL") || list.startsWith("TL")) {
+      return null;
+    }
+    return list;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Seeks the active YouTube tab's video player to the specified timestamp.
  */
 export function seekToTimestamp(seconds: number) {
@@ -69,4 +88,30 @@ export function seekToTimestamp(seconds: number) {
   } else {
     logger.info("[Mock] Seeking YouTube player to seconds: " + seconds);
   }
+}
+
+/**
+ * Queries the active YouTube tab's current video playback timestamp in seconds.
+ */
+export async function getCurrentVideoTime(): Promise<number> {
+  return new Promise((resolve) => {
+    if (typeof chrome !== "undefined" && chrome.tabs) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab && activeTab.id) {
+          chrome.tabs.sendMessage(activeTab.id, { action: "GET_CURRENT_TIME" }, (response) => {
+            if (chrome.runtime.lastError || !response || !response.success) {
+              resolve(0);
+            } else {
+              resolve(response.currentTime || 0);
+            }
+          });
+        } else {
+          resolve(0);
+        }
+      });
+    } else {
+      resolve(0);
+    }
+  });
 }
